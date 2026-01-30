@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DASHBOARD ROV - Pilote</title>
+    <style>
+        :root {
+            --neon-blue: #00f2ff;
+            --neon-green: #39ff14;
+            --bg-dark: #0a0b10;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: white;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #header {
+            width: 100%;
+            padding: 10px;
+            background: rgba(0, 242, 255, 0.1);
+            border-bottom: 1px solid var(--neon-blue);
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--neon-blue);
+            font-weight: bold;
+        }
+
+        #main-container {
+            display: flex;
+            width: 100vw;
+            height: calc(100vh - 50px);
+            padding: 20px;
+            box-sizing: border-box;
+            gap: 20px;
+        }
+
+        /* Zone Vidéo */
+        #video-section {
+            flex: 2;
+            position: relative;
+            background: #000;
+            border: 2px solid #333;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        #video-canvas {
+            width: 100%;
+            height: auto;
+            max-height: 100%;
+            border-radius: 4px;
+        }
+
+        /* Overlay Télémétrie sur la vidéo */
+        .hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            border-left: 3px solid var(--neon-green);
+            pointer-events: none;
+        }
+
+        /* Barre latérale droite */
+        #sidebar {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #333;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            color: var(--neon-green);
+            font-family: monospace;
+        }
+
+        .stat-label {
+            color: #aaa;
+            font-size: 0.8em;
+            text-transform: uppercase;
+        }
+
+        #status-indicator {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            background: #444;
+        }
+
+        .connected { color: var(--neon-green); }
+        .disconnected { color: #ff4444; }
+
+    </style>
+</head>
+<body>
+
+<div id="header">
+    Système de Pilotage ROV v1.0 - <span id="status-indicator" class="disconnected">SERVEUR DÉCONNECTÉ</span>
+</div>
+
+<div id="main-container">
+    <div id="video-section">
+        <canvas id="video-canvas"></canvas>
+        
+        <div class="hud">
+            <div class="stat-label">Statut Mission</div>
+            <div id="hud-status" style="color: var(--neon-blue);">EN ATTENTE...</div>
+        </div>
+    </div>
+
+    <div id="sidebar">
+        <div class="stat-card">
+            <div class="stat-label">🔋 Batterie</div>
+            <div id="bat-val" class="stat-value">-- %</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-label">🌡️ Température Eau</div>
+            <div id="temp-val" class="stat-value">-- °C</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">🚀 Vitesse Moteurs</div>
+            <div id="speed-val" class="stat-value">-- m/s</div>
+        </div>
+    </div>
+</div>
+
+<script src="/frontend/jsmpeg.min.js"></script>
+<script>
+    // 1. Gestion des URLs dynamiques (Important pour Ngrok / Public)
+    const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const host = window.location.host;
+    const videoUrl = protocol + host + '/ws/video';
+    const telemetryUrl = protocol + host + '/ws';
+
+    // 2. Initialisation Vidéo JSMpeg
+    const canvas = document.getElementById('video-canvas');
+    const player = new JSMpeg.Player(videoUrl, {
+        canvas: canvas,
+        autoplay: true,
+        audio: false,
+        onSourceEstablished: () => {
+            console.log("Flux vidéo reçu !");
+            document.getElementById('status-indicator').innerText = "LIVE VIDÉO OK";
+            document.getElementById('status-indicator').className = "connected";
+        }
+    });
+
+    // 3. Gestion Télémétrie via WebSocket
+    function connectTelemetry() {
+        const ws = new WebSocket(telemetryUrl);
+
+        ws.onopen = () => {
+            console.log("Connecté à la télémétrie");
+            document.getElementById('status-indicator').innerText = "SERVEUR CONNECTÉ";
+            document.getElementById('status-indicator').className = "connected";
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            // Mise à jour des valeurs sur la page
+            if (data.telemetry) {
+                document.getElementById('bat-val').innerText = (data.telemetry.battery || "--") + " %";
+                document.getElementById('temp-val').innerText = (data.telemetry.temperature || "--") + " °C";
+                document.getElementById('speed-val').innerText = (data.telemetry.speed || "--") + " m/s";
+                document.getElementById('hud-status').innerText = data.status.toUpperCase();
+            }
+        };
+
+        ws.onclose = () => {
+            console.log("Télémétrie perdue, tentative de reconnexion...");
+            document.getElementById('status-indicator').innerText = "DÉCONNECTÉ";
+            document.getElementById('status-indicator').className = "disconnected";
+            setTimeout(connectTelemetry, 2000); // Reconnexion auto
+        };
+    }
+
+    connectTelemetry();
+</script>
+
+</body>
+</html>

@@ -2,204 +2,263 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DASHBOARD ROV - Pilote</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ROV COMMAND CENTER - PRO</title>
     <style>
         :root {
             --neon-blue: #00f2ff;
             --neon-green: #39ff14;
+            --neon-red: #ff0044;
             --bg-dark: #0a0b10;
         }
 
         body {
             background-color: var(--bg-dark);
             color: white;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             margin: 0;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            height: 100vh;
         }
 
         #header {
-            width: 100%;
             padding: 10px;
             background: rgba(0, 242, 255, 0.1);
             border-bottom: 1px solid var(--neon-blue);
             text-align: center;
-            text-transform: uppercase;
             letter-spacing: 2px;
             color: var(--neon-blue);
             font-weight: bold;
+            text-transform: uppercase;
         }
 
         #main-container {
             display: flex;
-            width: 100vw;
-            height: calc(100vh - 50px);
-            padding: 20px;
+            flex: 1;
+            padding: 15px;
+            gap: 15px;
             box-sizing: border-box;
-            gap: 20px;
         }
 
-        /* Zone Vidéo */
+        /* --- SECTION VIDEO & HUD --- */
         #video-section {
-            flex: 2;
+            flex: 3;
             position: relative;
             background: #000;
             border: 2px solid #333;
             border-radius: 8px;
+            overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
 
         #video-canvas {
             width: 100%;
-            height: auto;
-            max-height: 100%;
-            border-radius: 4px;
+            height: 100%;
+            object-fit: contain;
         }
 
-        /* Overlay Télémétrie sur la vidéo */
-        .hud {
+        /* Système de zones d'obstacles */
+        .obstacle-zone {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.6);
-            padding: 15px;
-            border-left: 3px solid var(--neon-green);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: white;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s;
             pointer-events: none;
         }
 
-        /* Barre latérale droite */
+        /* Positionnement des 5 zones */
+        #obs-up    { top: 5%; left: 30%; width: 40%; height: 20px; border-radius: 5px; }
+        #obs-down  { bottom: 5%; left: 30%; width: 40%; height: 20px; border-radius: 5px; }
+        #obs-front-l { top: 30%; left: 5%; width: 15%; height: 40%; border-radius: 5px; }
+        #obs-front-c { top: 25%; left: 35%; width: 30%; height: 50%; border: 2px dashed rgba(255,255,255,0.2); }
+        #obs-front-r { top: 30%; right: 5%; width: 15%; height: 40%; border-radius: 5px; }
+
+        /* Style Alerte Rouge */
+        .danger-active {
+            background: rgba(255, 0, 68, 0.6) !important;
+            border: 2px solid var(--neon-red) !important;
+            box-shadow: 0 0 20px var(--neon-red);
+            animation: blink 0.5s infinite;
+        }
+
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+
+        /* Status Etanchéité (HUD) */
+        #leak-overlay {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            padding: 8px 15px;
+            background: rgba(0,0,0,0.8);
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+            font-weight: bold;
+            border-radius: 4px;
+        }
+
+        .leak-alert {
+            border-color: var(--neon-red) !important;
+            color: var(--neon-red) !important;
+            animation: blink 0.3s infinite;
+        }
+
+        /* --- BARRE LATÉRALE --- */
         #sidebar {
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 10px;
+            min-width: 220px;
+            overflow-y: auto;
         }
 
         .stat-card {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid #333;
-            padding: 20px;
+            padding: 12px;
             border-radius: 8px;
         }
 
         .stat-value {
-            font-size: 2em;
+            font-size: 1.5em;
             color: var(--neon-green);
             font-family: monospace;
         }
 
         .stat-label {
-            color: #aaa;
-            font-size: 0.8em;
+            color: #888;
+            font-size: 0.7em;
             text-transform: uppercase;
+            margin-bottom: 5px;
         }
 
-        #status-indicator {
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 0.9em;
-            background: #444;
-        }
-
-        .connected { color: var(--neon-green); }
-        .disconnected { color: #ff4444; }
-
+        .joystick-zone { position: absolute; bottom: 0; width: 50%; height: 60%; z-index: 10; }
+        #left-zone { left: 0; }
+        #right-zone { right: 0; }
     </style>
 </head>
 <body>
 
 <div id="header">
-    Système de Pilotage ROV v1.0 - <span id="status-indicator" class="disconnected">SERVEUR DÉCONNECTÉ</span>
+    ROV Cockpit v2.0 - <span id="status-indicator" class="disconnected">OFFLINE</span>
 </div>
 
 <div id="main-container">
     <div id="video-section">
         <canvas id="video-canvas"></canvas>
         
-        <div class="hud">
-            <div class="stat-label">Statut Mission</div>
-            <div id="hud-status" style="color: var(--neon-blue);">EN ATTENTE...</div>
-        </div>
+        <div id="obs-up" class="obstacle-zone">UP</div>
+        <div id="obs-front-l" class="obstacle-zone">FRONT L</div>
+        <div id="obs-front-c" class="obstacle-zone">FRONT CENTER</div>
+        <div id="obs-front-r" class="obstacle-zone">FRONT R</div>
+        <div id="obs-down" class="obstacle-zone">DOWN</div>
+
+        <div id="leak-overlay">ÉTANCHÉITÉ: OK</div>
+
+        <div id="left-zone" class="joystick-zone"></div>
+        <div id="right-zone" class="joystick-zone"></div>
     </div>
 
     <div id="sidebar">
         <div class="stat-card">
             <div class="stat-label">🔋 Batterie</div>
-            <div id="bat-val" class="stat-value">-- %</div>
+            <div id="bat-val" class="stat-value">--%</div>
         </div>
         
         <div class="stat-card">
-            <div class="stat-label">🌡️ Température Eau</div>
-            <div id="temp-val" class="stat-value">-- °C</div>
+            <div class="stat-label">🌡️ Température</div>
+            <div id="temp-val" class="stat-value">--°C</div>
         </div>
 
         <div class="stat-card">
-            <div class="stat-label">🚀 Vitesse Moteurs</div>
-            <div id="speed-val" class="stat-value">-- m/s</div>
+            <div class="stat-label">⚓ Pression / Profondeur</div>
+            <div id="press-val" class="stat-value">-- hPa</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">📍 Position (X, Y)</div>
+            <div id="pos-val" class="stat-value">0.0 , 0.0</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">🛰️ Latence (Ping)</div>
+            <div id="ping-val" class="stat-value">--ms</div>
         </div>
     </div>
 </div>
 
 <script src="/frontend/jsmpeg.min.js"></script>
 <script>
-    // 1. Gestion des URLs dynamiques (Important pour Ngrok / Public)
-    const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const isSecure = window.location.protocol === 'https:';
+    const wsProtocol = isSecure ? 'wss://' : 'ws://';
     const host = window.location.host;
-    const videoUrl = protocol + host + '/ws/video';
-    const telemetryUrl = protocol + host + '/ws';
+    const videoUrl = wsProtocol + host + '/ws/video';
+    const telemetryUrl = wsProtocol + host + '/ws';
 
-    // 2. Initialisation Vidéo JSMpeg
     const canvas = document.getElementById('video-canvas');
-    const player = new JSMpeg.Player(videoUrl, {
+    let player = new JSMpeg.Player(videoUrl, {
         canvas: canvas,
         autoplay: true,
-        audio: false,
         onSourceEstablished: () => {
-            console.log("Flux vidéo reçu !");
-            document.getElementById('status-indicator').innerText = "LIVE VIDÉO OK";
+            document.getElementById('status-indicator').innerText = "LIVE VIDEO";
             document.getElementById('status-indicator').className = "connected";
         }
     });
 
-    // 3. Gestion Télémétrie via WebSocket
     function connectTelemetry() {
         const ws = new WebSocket(telemetryUrl);
-
-        ws.onopen = () => {
-            console.log("Connecté à la télémétrie");
-            document.getElementById('status-indicator').innerText = "SERVEUR CONNECTÉ";
-            document.getElementById('status-indicator').className = "connected";
-        };
+        let lastPing = Date.now();
 
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             
-            // Mise à jour des valeurs sur la page
+            // Calcul du ping
+            document.getElementById('ping-val').innerText = (Date.now() - lastPing) + "ms";
+            lastPing = Date.now();
+
             if (data.telemetry) {
-                document.getElementById('bat-val').innerText = (data.telemetry.battery || "--") + " %";
-                document.getElementById('temp-val').innerText = (data.telemetry.temperature || "--") + " °C";
-                document.getElementById('speed-val').innerText = (data.telemetry.speed || "--") + " m/s";
-                document.getElementById('hud-status').innerText = data.status.toUpperCase();
+                // Télémétrie classique
+                document.getElementById('bat-val').innerText = (data.telemetry.battery || "--") + "%";
+                document.getElementById('temp-val').innerText = (data.telemetry.temperature || "--") + "°C";
+                document.getElementById('press-val').innerText = (data.telemetry.pressure || "--") + " hPa";
+                document.getElementById('pos-val').innerText = `${data.telemetry.posX || 0} , ${data.telemetry.posY || 0}`;
+
+                // Gestion Étanchéité
+                const leakEl = document.getElementById('leak-overlay');
+                if (data.telemetry.leak) {
+                    leakEl.innerText = "⚠️ VOIE D'EAU !";
+                    leakEl.classList.add('leak-alert');
+                } else {
+                    leakEl.innerText = "ÉTANCHÉITÉ: OK";
+                    leakEl.classList.remove('leak-alert');
+                }
+
+                // Gestion des 5 capteurs d'obstacles (booléens : true = danger)
+                document.getElementById('obs-up').classList.toggle('danger-active', data.telemetry.obs_up);
+                document.getElementById('obs-down').classList.toggle('danger-active', data.telemetry.obs_down);
+                document.getElementById('obs-front-l').classList.toggle('danger-active', data.telemetry.obs_f_left);
+                document.getElementById('obs-front-c').classList.toggle('danger-active', data.telemetry.obs_f_mid);
+                document.getElementById('obs-front-r').classList.toggle('danger-active', data.telemetry.obs_f_right);
             }
         };
 
         ws.onclose = () => {
-            console.log("Télémétrie perdue, tentative de reconnexion...");
-            document.getElementById('status-indicator').innerText = "DÉCONNECTÉ";
             document.getElementById('status-indicator').className = "disconnected";
-            setTimeout(connectTelemetry, 2000); // Reconnexion auto
+            setTimeout(connectTelemetry, 2000);
         };
     }
 
     connectTelemetry();
 </script>
-
 </body>
 </html>

@@ -45,7 +45,7 @@ async def login_page():
 @app.post("/login")
 async def login(request: Request, password: str = Form(...)):
     # On utilise une variable d'environnement pour le mot de passe sur Render
-    if password == os.environ.get("DASHBOARD_PASSWORD", "roboti129-AA"):
+    if password == os.environ.get("DASHBOARD_PASSWORD", "robotAA"):
         request.session["authenticated"] = True
         return RedirectResponse("/dashboard", status_code=302)
     return HTMLResponse("❌ Incorrect", status_code=401)
@@ -78,4 +78,5 @@ async def video_stream(websocket: WebSocket):
 if __name__ == "__main__":
     # Render définit automatiquement la variable d'environnement PORT
     port = int(os.environ.get("PORT", 8000))
+
     uvicorn.run(app, host="0.0.0.0", port=port)

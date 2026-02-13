@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ROV PS4 COCKPIT</title>
+    <title>ROV MISSION CONTROL - FULL INTERFACE</title>
     <style>
         :root {
             --neon-blue: #00f2ff;
@@ -29,9 +29,8 @@
             background: linear-gradient(90deg, transparent, var(--ps-blue), transparent);
             border-bottom: 1px solid var(--neon-blue);
             text-align: center;
-            color: white;
             font-weight: bold;
-            text-transform: uppercase;
+            letter-spacing: 2px;
         }
 
         #main-container {
@@ -40,100 +39,139 @@
             padding: 15px;
             gap: 15px;
             box-sizing: border-box;
+            min-height: 0;
         }
 
+        /* --- VIDEO & HUD --- */
         #video-section {
             flex: 3;
             position: relative;
             background: #000;
             border: 2px solid #333;
-            border-radius: 15px;
+            border-radius: 12px;
             overflow: hidden;
         }
 
         #video-canvas { width: 100%; height: 100%; object-fit: contain; }
 
-        /* --- STYLISATION DE LA MANETTE PS4 --- */
+        /* Obstacles HUD */
+        .obs-zone {
+            position: absolute;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: bold; color: white;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            pointer-events: none;
+        }
+        #obs-up { top: 5%; left: 35%; width: 30%; height: 20px; }
+        #obs-down { bottom: 5%; left: 35%; width: 30%; height: 20px; }
+        #obs-front-l { top: 30%; left: 5%; width: 12%; height: 40%; }
+        #obs-front-c { top: 25%; left: 35%; width: 30%; height: 50%; border: 2px dashed rgba(255,255,255,0.2); }
+        #obs-front-r { top: 30%; right: 5%; width: 12%; height: 40%; }
+        .danger { background: rgba(255, 0, 68, 0.7) !important; border-color: var(--neon-red) !important; animation: blink 0.5s infinite; }
+
+        /* Fuite d'eau */
+        #leak-overlay {
+            display: none;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.9);
+            padding: 30px; border: 5px solid white;
+            font-size: 2.5em; font-weight: bold; z-index: 100;
+        }
+
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+
+        /* --- SIDEBAR --- */
         #sidebar {
             flex: 1;
             display: flex;
             flex-direction: column;
             gap: 10px;
             min-width: 280px;
+            overflow-y: auto;
         }
-
-        .controller-card {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 15px;
-            padding: 15px;
-            text-align: center;
-            border: 1px solid #333;
-        }
-
-        /* SVG Manette */
-        #ps4-svg {
-            width: 100%;
-            height: auto;
-            max-width: 250px;
-            filter: drop-shadow(0 0 5px rgba(0,0,0,0.5));
-        }
-
-        .ps-btn { fill: #333; transition: fill 0.1s; }
-        .ps-btn-active { fill: var(--neon-blue) !important; filter: blur(1px); }
-        .ps-stick { fill: #222; stroke: #444; stroke-width: 1; }
-        
-        /* Symboles PS4 colors */
-        .btn-cross.ps-btn-active { fill: #5a78ff !important; }
-        .btn-circle.ps-btn-active { fill: #ff5a5a !important; }
-        .btn-square.ps-btn-active { fill: #ff7ade !important; }
-        .btn-triangle.ps-btn-active { fill: #00e676 !important; }
 
         .stat-card {
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(255, 255, 255, 0.05);
             border-left: 4px solid var(--neon-blue);
-            padding: 10px;
-            border-radius: 5px;
+            padding: 12px;
+            border-radius: 8px;
         }
 
-        .stat-value { font-size: 1.4em; color: var(--neon-green); font-family: monospace; }
-        .stat-label { color: #888; font-size: 0.7em; text-transform: uppercase; }
+        .stat-label { color: #888; font-size: 0.7em; text-transform: uppercase; margin-bottom: 5px; }
+        .stat-value { font-size: 1.5em; color: var(--neon-green); font-family: monospace; }
 
+        /* --- PS4 CONTROLLER DESIGN --- */
+        .ps4-visual-box {
+            position: relative;
+            width: 240px; height: 150px;
+            margin: 10px auto;
+            background: url('https://raw.githubusercontent.com/Anis-V/Gamepad-API-Tester/master/img/ds4.png') no-repeat center;
+            background-size: contain;
+        }
+        .v-stick {
+            position: absolute; width: 28px; height: 28px;
+            background: radial-gradient(#444, #111);
+            border-radius: 50%; border: 1px solid #000;
+            top: 86px;
+        }
+        #v-stick-l { left: 74px; }
+        #v-stick-r { left: 137px; }
+        .v-btn {
+            position: absolute; width: 18px; height: 18px;
+            border-radius: 50%; transition: 0.1s;
+        }
+        #v-btn-0 { top: 84px; left: 177px; } /* Cross */
+        #v-btn-1 { top: 63px; left: 198px; } /* Circle */
+        #v-btn-2 { top: 63px; left: 156px; } /* Square */
+        #v-btn-3 { top: 42px; left: 177px; } /* Triangle */
     </style>
 </head>
 <body>
 
-<div id="header">DUALSHOCK 4 CONTROL INTERFACE</div>
+<div id="header">SYSTEME ROV - STATUS: <span id="status-text" style="color:red">OFFLINE</span></div>
 
 <div id="main-container">
     <div id="video-section">
         <canvas id="video-canvas"></canvas>
+        <div id="leak-overlay">⚠️ VOIE D'EAU ! ⚠️</div>
+        
+        <div id="obs-up" class="obs-zone">UP</div>
+        <div id="obs-front-l" class="obs-zone">L</div>
+        <div id="obs-front-c" class="obs-zone">CENTER</div>
+        <div id="obs-front-r" class="obs-zone">R</div>
+        <div id="obs-down" class="obs-zone">DOWN</div>
     </div>
 
     <div id="sidebar">
-        <div class="controller-card">
-            <div class="stat-label" style="margin-bottom:10px;">DualShock 4 Status</div>
-            <svg id="ps4-svg" viewBox="0 0 200 150">
-                <path d="M50,40 Q20,40 20,80 Q20,130 50,130 Q70,130 80,110 L120,110 Q130,130 150,130 Q180,130 180,80 Q180,40 150,40 Z" fill="#1a1a1a"/>
-                <rect x="70" y="45" width="60" height="35" rx="5" fill="#2a2a2a" id="ps-touchpad"/>
-                
-                <circle cx="70" cy="100" r="15" fill="#111"/>
-                <circle id="stick-l" cx="70" cy="100" r="10" class="ps-stick"/>
-                
-                <circle cx="130" cy="100" r="15" fill="#111"/>
-                <circle id="stick-r" cx="130" cy="100" r="10" class="ps-stick"/>
-
-                <circle id="btn-0" class="ps-btn btn-cross" cx="155" cy="95" r="6"/> <circle id="btn-1" class="ps-btn btn-circle" cx="170" cy="80" r="6"/> <circle id="btn-2" class="ps-btn btn-square" cx="140" cy="80" r="6"/> <circle id="btn-3" class="ps-btn btn-triangle" cx="155" cy="65" r="6"/> <rect id="btn-12" class="ps-btn" x="42" y="74" width="6" height="12" rx="1"/> <rect id="btn-13" class="ps-btn" x="42" y="94" width="6" height="12" rx="1"/> </svg>
-            <div id="gp-name" style="font-size: 0.8em; color: var(--neon-blue); margin-top: 10px;">Connectez une manette...</div>
+        <div class="stat-card" style="border-left-color: var(--ps-blue);">
+            <div class="stat-label">Contrôleur PS4</div>
+            <div class="ps4-visual-box">
+                <div id="v-stick-l" class="v-stick"></div>
+                <div id="v-stick-r" class="v-stick"></div>
+                <div id="v-btn-0" class="v-btn"></div>
+                <div id="v-btn-1" class="v-btn"></div>
+                <div id="v-btn-2" class="v-btn"></div>
+                <div id="v-btn-3" class="v-btn"></div>
+            </div>
         </div>
 
         <div class="stat-card">
-            <div class="stat-label">⚡ Consommation</div>
+            <div class="stat-label">Consommation</div>
             <div id="amp-val" class="stat-value">0.00 A</div>
         </div>
 
         <div class="stat-card">
-            <div class="stat-label">🌡️ Température</div>
-            <div id="temp-val" class="stat-value">-- °C</div>
+            <div class="stat-label">Température / Pression</div>
+            <div id="temp-val" class="stat-value" style="font-size: 1.1em;">--°C | --hPa</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">Position X / Y</div>
+            <div id="pos-val" class="stat-value" style="font-size: 1.1em;">0.00 , 0.00</div>
         </div>
     </div>
 </div>
@@ -141,60 +179,66 @@
 <script src="/frontend/jsmpeg.min.js"></script>
 <script>
     const host = window.location.host;
-    const wsProto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const proto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
     
-    // Initialisation Vidéo
-    const canvas = document.getElementById('video-canvas');
-    const player = new JSMpeg.Player(wsProto + host + '/ws/video', { canvas: canvas, autoplay: true });
+    // 1. Vidéo
+    const player = new JSMpeg.Player(proto + host + '/ws/video', { 
+        canvas: document.getElementById('video-canvas'),
+        onSourceEstablished: () => {
+            document.getElementById('status-text').innerText = "LIVE";
+            document.getElementById('status-text').style.color = "var(--neon-green)";
+        }
+    });
 
-    // Gestion de la Manette PS4
-    function updateGamepad() {
-        const gamepads = navigator.getGamepads();
-        const gp = gamepads[0];
-
-        if (gp) {
-            document.getElementById('gp-name').innerText = "PS4 CONTROLLER ACTIVE";
-            
-            // Animation Joysticks (Axes 0,1 et 2,3)
-            const sL = document.getElementById('stick-l');
-            sL.setAttribute('cx', 70 + (gp.axes[0] * 8));
-            sL.setAttribute('cy', 100 + (gp.axes[1] * 8));
-
-            const sR = document.getElementById('stick-r');
-            sR.setAttribute('cx', 130 + (gp.axes[2] * 8));
-            sR.setAttribute('cy', 100 + (gp.axes[3] * 8));
-
-            // Animation Boutons (0: Croix, 1: Cercle, 2: Carré, 3: Triangle)
-            for (let i = 0; i < 4; i++) {
-                const btn = document.getElementById(`btn-${i}`);
-                if (gp.buttons[i].pressed) btn.classList.add('ps-btn-active');
-                else btn.classList.remove('ps-btn-active');
+    // 2. Télémétrie & Capteurs
+    function connectTele() {
+        const ws = new WebSocket(proto + host + '/ws');
+        ws.onmessage = (e) => {
+            const data = JSON.parse(e.data);
+            if (data.telemetry) {
+                const t = data.telemetry;
+                document.getElementById('amp-val').innerText = (t.amps || 0).toFixed(2) + " A";
+                document.getElementById('temp-val').innerText = `${t.temperature || '--'}°C | ${t.pressure || '--'}hPa`;
+                document.getElementById('pos-val').innerText = `${t.posX || 0} , ${t.posY || 0}`;
+                
+                // Alertes
+                document.getElementById('leak-overlay').style.display = t.leak ? "block" : "none";
+                document.getElementById('obs-up').classList.toggle('danger', t.obs_up);
+                document.getElementById('obs-down').classList.toggle('danger', t.obs_down);
+                document.getElementById('obs-front-l').classList.toggle('danger', t.obs_f_left);
+                document.getElementById('obs-front-c').classList.toggle('danger', t.obs_f_mid);
+                document.getElementById('obs-front-r').classList.toggle('danger', t.obs_f_right);
             }
+        };
+        ws.onclose = () => setTimeout(connectTele, 2000);
+    }
+
+    // 3. Manette PS4
+    function updateGamepad() {
+        const gp = navigator.getGamepads()[0];
+        if (gp) {
+            // Sticks
+            document.getElementById('v-stick-l').style.transform = `translate(${gp.axes[0]*10}px, ${gp.axes[1]*10}px)`;
+            document.getElementById('v-stick-r').style.transform = `translate(${gp.axes[2]*10}px, ${gp.axes[3]*10}px)`;
             
-            // D-Pad
-            [12, 13].forEach(i => {
-                const btn = document.getElementById(`btn-${i}`);
-                if (gp.buttons[i].pressed) btn.classList.add('ps-btn-active');
-                else btn.classList.remove('ps-btn-active');
-            });
+            // Boutons (Couleurs PS4)
+            const colors = ['#5a78ff', '#ff5a5a', '#ff7ade', '#00e676']; // Cross, Circle, Square, Triangle
+            for (let i=0; i<4; i++) {
+                const b = document.getElementById(`v-btn-${i}`);
+                if (gp.buttons[i].pressed) {
+                    b.style.background = colors[i];
+                    b.style.boxShadow = `0 0 15px ${colors[i]}`;
+                } else {
+                    b.style.background = "transparent";
+                    b.style.boxShadow = "none";
+                }
+            }
         }
         requestAnimationFrame(updateGamepad);
     }
 
-    window.addEventListener("gamepadconnected", () => {
-        console.log("Manette détectée");
-        updateGamepad();
-    });
-
-    // Connexion télémétrie (Websocket)
-    const wsTele = new WebSocket(wsProto + host + '/ws');
-    wsTele.onmessage = (e) => {
-        const data = JSON.parse(e.data);
-        if (data.telemetry) {
-            document.getElementById('amp-val').innerText = data.telemetry.amps.toFixed(2) + " A";
-            document.getElementById('temp-val').innerText = data.telemetry.temperature + " °C";
-        }
-    };
+    window.addEventListener("gamepadconnected", updateGamepad);
+    connectTele();
 </script>
 </body>
 </html>

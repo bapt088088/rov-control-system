@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ROV MISSION CONTROL - FULL INTERFACE</title>
+    <title>ROV COMMAND CENTER - PRO</title>
     <style>
         :root {
             --neon-blue: #00f2ff;
-            --ps-blue: #003791;
             --neon-green: #39ff14;
             --neon-red: #ff0044;
             --bg-dark: #0a0b10;
@@ -26,11 +25,13 @@
 
         #header {
             padding: 10px;
-            background: linear-gradient(90deg, transparent, var(--ps-blue), transparent);
+            background: rgba(0, 242, 255, 0.1);
             border-bottom: 1px solid var(--neon-blue);
             text-align: center;
-            font-weight: bold;
             letter-spacing: 2px;
+            color: var(--neon-blue);
+            font-weight: bold;
+            text-transform: uppercase;
         }
 
         #main-container {
@@ -39,50 +40,63 @@
             padding: 15px;
             gap: 15px;
             box-sizing: border-box;
-            min-height: 0;
         }
 
-        /* --- VIDEO & HUD --- */
+        /* --- SECTION VIDEO & HUD --- */
         #video-section {
             flex: 3;
             position: relative;
             background: #000;
             border: 2px solid #333;
-            border-radius: 12px;
+            border-radius: 8px;
             overflow: hidden;
         }
 
-        #video-canvas { width: 100%; height: 100%; object-fit: contain; }
-
-        /* Obstacles HUD */
-        .obs-zone {
-            position: absolute;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 10px; font-weight: bold; color: white;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-            pointer-events: none;
+        #video-canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
-        #obs-up { top: 5%; left: 35%; width: 30%; height: 20px; }
-        #obs-down { bottom: 5%; left: 35%; width: 30%; height: 20px; }
-        #obs-front-l { top: 30%; left: 5%; width: 12%; height: 40%; }
-        #obs-front-c { top: 25%; left: 35%; width: 30%; height: 50%; border: 2px dashed rgba(255,255,255,0.2); }
-        #obs-front-r { top: 30%; right: 5%; width: 12%; height: 40%; }
-        .danger { background: rgba(255, 0, 68, 0.7) !important; border-color: var(--neon-red) !important; animation: blink 0.5s infinite; }
 
-        /* Fuite d'eau */
-        #leak-overlay {
+        #leak-alert-big {
             display: none;
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             background: rgba(255, 0, 0, 0.9);
-            padding: 30px; border: 5px solid white;
-            font-size: 2.5em; font-weight: bold; z-index: 100;
+            color: white;
+            padding: 20px 40px;
+            border: 5px solid white;
+            font-size: 2em;
+            font-weight: bold;
+            z-index: 100;
+            animation: flash-red 0.5s infinite;
         }
 
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        @keyframes flash-red { 
+            0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; }
+        }
+
+        /* HUD Obstacles */
+        .obstacle-zone {
+            position: absolute;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: bold;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }
+        #obs-up { top: 5%; left: 35%; width: 30%; height: 25px; }
+        #obs-down { bottom: 5%; left: 35%; width: 30%; height: 25px; }
+        #obs-front-l { top: 30%; left: 5%; width: 15%; height: 40%; }
+        #obs-front-c { top: 25%; left: 35%; width: 30%; height: 50%; border: 2px dashed rgba(255,255,255,0.2); }
+        #obs-front-r { top: 30%; right: 5%; width: 15%; height: 40%; }
+        
+        .danger-active {
+            background: rgba(255, 0, 68, 0.7) !important;
+            border: 2px solid var(--neon-red) !important;
+            box-shadow: 0 0 15px var(--neon-red);
+        }
 
         /* --- SIDEBAR --- */
         #sidebar {
@@ -90,88 +104,110 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            min-width: 280px;
+            min-width: 240px;
             overflow-y: auto;
         }
 
         .stat-card {
             background: rgba(255, 255, 255, 0.05);
-            border-left: 4px solid var(--neon-blue);
+            border: 1px solid #333;
             padding: 12px;
             border-radius: 8px;
+            border-left: 4px solid var(--neon-blue);
         }
 
-        .stat-label { color: #888; font-size: 0.7em; text-transform: uppercase; margin-bottom: 5px; }
-        .stat-value { font-size: 1.5em; color: var(--neon-green); font-family: monospace; }
+        .stat-value { font-size: 1.4em; color: var(--neon-green); font-family: monospace; }
+        .stat-label { color: #888; font-size: 0.75em; text-transform: uppercase; margin-bottom: 5px; }
 
-        /* --- PS4 CONTROLLER DESIGN --- */
-        .ps4-visual-box {
-            position: relative;
-            width: 240px; height: 150px;
-            margin: 10px auto;
-            background: url('https://raw.githubusercontent.com/Anis-V/Gamepad-API-Tester/master/img/ds4.png') no-repeat center;
-            background-size: contain;
+        /* --- MANETTE VIRTUELLE --- */
+        .controller-display {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 8px;
         }
-        .v-stick {
-            position: absolute; width: 28px; height: 28px;
-            background: radial-gradient(#444, #111);
-            border-radius: 50%; border: 1px solid #000;
-            top: 86px;
+        .stick-container {
+            width: 50px; height: 50px;
+            border: 2px solid #444;
+            border-radius: 50%;
+            position: relative; margin: auto;
         }
-        #v-stick-l { left: 74px; }
-        #v-stick-r { left: 137px; }
-        .v-btn {
-            position: absolute; width: 18px; height: 18px;
-            border-radius: 50%; transition: 0.1s;
+        .stick {
+            width: 15px; height: 15px;
+            background: var(--neon-blue);
+            border-radius: 50%;
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
         }
-        #v-btn-0 { top: 84px; left: 177px; } /* Cross */
-        #v-btn-1 { top: 63px; left: 198px; } /* Circle */
-        #v-btn-2 { top: 63px; left: 156px; } /* Square */
-        #v-btn-3 { top: 42px; left: 177px; } /* Triangle */
+        .btn-grid {
+            grid-column: span 2;
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 5px; margin-top: 10px;
+        }
+        .btn-inc {
+            width: 25px; height: 25px; border: 1px solid #555;
+            border-radius: 50%; font-size: 9px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .btn-on { background: var(--neon-green); color: black; border-color: white; }
+
+        .connected { color: var(--neon-green); }
+        .disconnected { color: var(--neon-red); }
     </style>
 </head>
 <body>
 
-<div id="header">SYSTEME ROV - STATUS: <span id="status-text" style="color:red">OFFLINE</span></div>
+<div id="header">
+    ROV COMMAND CENTER - <span id="status-indicator" class="disconnected">OFFLINE</span>
+</div>
 
 <div id="main-container">
     <div id="video-section">
         <canvas id="video-canvas"></canvas>
-        <div id="leak-overlay">⚠️ VOIE D'EAU ! ⚠️</div>
+        <div id="leak-alert-big">⚠️ VOIE D'EAU DÉTECTÉE ⚠️</div>
         
-        <div id="obs-up" class="obs-zone">UP</div>
-        <div id="obs-front-l" class="obs-zone">L</div>
-        <div id="obs-front-c" class="obs-zone">CENTER</div>
-        <div id="obs-front-r" class="obs-zone">R</div>
-        <div id="obs-down" class="obs-zone">DOWN</div>
+        <div id="obs-up" class="obstacle-zone">UP</div>
+        <div id="obs-front-l" class="obstacle-zone">L</div>
+        <div id="obs-front-c" class="obstacle-zone">CENTER</div>
+        <div id="obs-front-r" class="obstacle-zone">R</div>
+        <div id="obs-down" class="obstacle-zone">DOWN</div>
     </div>
 
     <div id="sidebar">
-        <div class="stat-card" style="border-left-color: var(--ps-blue);">
-            <div class="stat-label">Contrôleur PS4</div>
-            <div class="ps4-visual-box">
-                <div id="v-stick-l" class="v-stick"></div>
-                <div id="v-stick-r" class="v-stick"></div>
-                <div id="v-btn-0" class="v-btn"></div>
-                <div id="v-btn-1" class="v-btn"></div>
-                <div id="v-btn-2" class="v-btn"></div>
-                <div id="v-btn-3" class="v-btn"></div>
+        <div class="stat-card">
+            <div class="stat-label">🎮 Contrôleur</div>
+            <div class="controller-display">
+                <div class="stick-container"><div id="stick-l" class="stick"></div></div>
+                <div class="stick-container"><div id="stick-r" class="stick"></div></div>
+                <div class="btn-grid">
+                    <div id="btn-0" class="btn-inc">A</div>
+                    <div id="btn-1" class="btn-inc">B</div>
+                    <div id="btn-2" class="btn-inc">X</div>
+                    <div id="btn-3" class="btn-inc">Y</div>
+                </div>
             </div>
         </div>
 
         <div class="stat-card">
-            <div class="stat-label">Consommation</div>
+            <div class="stat-label">⚡ Consommation</div>
             <div id="amp-val" class="stat-value">0.00 A</div>
         </div>
 
         <div class="stat-card">
-            <div class="stat-label">Température / Pression</div>
-            <div id="temp-val" class="stat-value" style="font-size: 1.1em;">--°C | --hPa</div>
+            <div class="stat-label">🌡️ Température</div>
+            <div id="temp-val" class="stat-value">--°C</div>
         </div>
 
         <div class="stat-card">
-            <div class="stat-label">Position X / Y</div>
-            <div id="pos-val" class="stat-value" style="font-size: 1.1em;">0.00 , 0.00</div>
+            <div class="stat-label">⚓ Pression / Profondeur</div>
+            <div id="press-val" class="stat-value">-- hPa</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">📍 Position X, Y</div>
+            <div id="pos-val" class="stat-value">0.0 , 0.0</div>
         </div>
     </div>
 </div>
@@ -179,66 +215,60 @@
 <script src="/frontend/jsmpeg.min.js"></script>
 <script>
     const host = window.location.host;
-    const proto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const wsProto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
     
-    // 1. Vidéo
-    const player = new JSMpeg.Player(proto + host + '/ws/video', { 
-        canvas: document.getElementById('video-canvas'),
+    // Initialisation Vidéo
+    const canvas = document.getElementById('video-canvas');
+    const player = new JSMpeg.Player(wsProto + host + '/ws/video', {
+        canvas: canvas,
+        autoplay: true,
         onSourceEstablished: () => {
-            document.getElementById('status-text').innerText = "LIVE";
-            document.getElementById('status-text').style.color = "var(--neon-green)";
+            document.getElementById('status-indicator').innerText = "LIVE";
+            document.getElementById('status-indicator').className = "connected";
         }
     });
 
-    // 2. Télémétrie & Capteurs
-    function connectTele() {
-        const ws = new WebSocket(proto + host + '/ws');
-        ws.onmessage = (e) => {
-            const data = JSON.parse(e.data);
+    // Gestion Télémétrie
+    function connectTelemetry() {
+        const ws = new WebSocket(wsProto + host + '/ws');
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
             if (data.telemetry) {
-                const t = data.telemetry;
-                document.getElementById('amp-val').innerText = (t.amps || 0).toFixed(2) + " A";
-                document.getElementById('temp-val').innerText = `${t.temperature || '--'}°C | ${t.pressure || '--'}hPa`;
-                document.getElementById('pos-val').innerText = `${t.posX || 0} , ${t.posY || 0}`;
+                document.getElementById('amp-val').innerText = (data.telemetry.amps || 0).toFixed(2) + " A";
+                document.getElementById('temp-val').innerText = (data.telemetry.temperature || "--") + "°C";
+                document.getElementById('press-val').innerText = (data.telemetry.pressure || "--") + " hPa";
+                document.getElementById('pos-val').innerText = `${data.telemetry.posX || 0}, ${data.telemetry.posY || 0}`;
                 
                 // Alertes
-                document.getElementById('leak-overlay').style.display = t.leak ? "block" : "none";
-                document.getElementById('obs-up').classList.toggle('danger', t.obs_up);
-                document.getElementById('obs-down').classList.toggle('danger', t.obs_down);
-                document.getElementById('obs-front-l').classList.toggle('danger', t.obs_f_left);
-                document.getElementById('obs-front-c').classList.toggle('danger', t.obs_f_mid);
-                document.getElementById('obs-front-r').classList.toggle('danger', t.obs_f_right);
+                document.getElementById('leak-alert-big').style.display = data.telemetry.leak ? "block" : "none";
+                document.getElementById('obs-up').classList.toggle('danger-active', data.telemetry.obs_up);
+                document.getElementById('obs-down').classList.toggle('danger-active', data.telemetry.obs_down);
+                document.getElementById('obs-front-l').classList.toggle('danger-active', data.telemetry.obs_f_left);
+                document.getElementById('obs-front-c').classList.toggle('danger-active', data.telemetry.obs_f_mid);
+                document.getElementById('obs-front-r').classList.toggle('danger-active', data.telemetry.obs_f_right);
             }
         };
-        ws.onclose = () => setTimeout(connectTele, 2000);
+        ws.onclose = () => setTimeout(connectTelemetry, 2000);
     }
 
-    // 3. Manette PS4
+    // Gestion Manette
     function updateGamepad() {
         const gp = navigator.getGamepads()[0];
         if (gp) {
-            // Sticks
-            document.getElementById('v-stick-l').style.transform = `translate(${gp.axes[0]*10}px, ${gp.axes[1]*10}px)`;
-            document.getElementById('v-stick-r').style.transform = `translate(${gp.axes[2]*10}px, ${gp.axes[3]*10}px)`;
+            // Sticks (multiplié par 15px pour le mouvement visuel)
+            document.getElementById('stick-l').style.transform = `translate(calc(-50% + ${gp.axes[0]*15}px), calc(-50% + ${gp.axes[1]*15}px))`;
+            document.getElementById('stick-r').style.transform = `translate(calc(-50% + ${gp.axes[2]*15}px), calc(-50% + ${gp.axes[3]*15}px))`;
             
-            // Boutons (Couleurs PS4)
-            const colors = ['#5a78ff', '#ff5a5a', '#ff7ade', '#00e676']; // Cross, Circle, Square, Triangle
+            // Boutons
             for (let i=0; i<4; i++) {
-                const b = document.getElementById(`v-btn-${i}`);
-                if (gp.buttons[i].pressed) {
-                    b.style.background = colors[i];
-                    b.style.boxShadow = `0 0 15px ${colors[i]}`;
-                } else {
-                    b.style.background = "transparent";
-                    b.style.boxShadow = "none";
-                }
+                document.getElementById(`btn-${i}`).classList.toggle('btn-on', gp.buttons[i].pressed);
             }
         }
         requestAnimationFrame(updateGamepad);
     }
 
     window.addEventListener("gamepadconnected", updateGamepad);
-    connectTele();
+    connectTelemetry();
 </script>
 </body>
 </html>

@@ -9,6 +9,7 @@
             --neon-blue: #00f2ff;
             --neon-green: #39ff14;
             --neon-red: #ff0044;
+            --neon-yellow: #f4ea07;
             --bg-dark: #0a0b10;
         }
 
@@ -31,7 +32,6 @@
             letter-spacing: 2px;
             color: var(--neon-blue);
             font-weight: bold;
-            text-transform: uppercase;
         }
 
         #main-container {
@@ -50,9 +50,6 @@
             border: 2px solid #333;
             border-radius: 8px;
             overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
         #video-canvas {
@@ -61,65 +58,58 @@
             object-fit: contain;
         }
 
-        /* Système de zones d'obstacles */
-        .obstacle-zone {
+        /* Alerte Fuite d'eau (Overlay critique) */
+        #leak-alert-big {
+            display: none; /* Caché par défaut */
             position: absolute;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            font-weight: bold;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.8);
             color: white;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.2s;
+            padding: 20px 40px;
+            border: 5px solid white;
+            font-size: 2em;
+            font-weight: bold;
+            z-index: 100;
+            animation: flash-red 0.5s infinite;
             pointer-events: none;
         }
 
-        /* Positionnement des 5 zones */
-        #obs-up    { top: 5%; left: 30%; width: 40%; height: 20px; border-radius: 5px; }
-        #obs-down  { bottom: 5%; left: 30%; width: 40%; height: 20px; border-radius: 5px; }
-        #obs-front-l { top: 30%; left: 5%; width: 15%; height: 40%; border-radius: 5px; }
-        #obs-front-c { top: 25%; left: 35%; width: 30%; height: 50%; border: 2px dashed rgba(255,255,255,0.2); }
-        #obs-front-r { top: 30%; right: 5%; width: 15%; height: 40%; border-radius: 5px; }
+        @keyframes flash-red { 
+            0% { background: rgba(255, 0, 0, 0.8); }
+            50% { background: rgba(100, 0, 0, 0.9); }
+            100% { background: rgba(255, 0, 0, 0.8); }
+        }
 
-        /* Style Alerte Rouge */
+        /* HUD Zones Obstacles */
+        .obstacle-zone {
+            position: absolute;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: bold; color: white;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s;
+        }
+
+        #obs-up    { top: 5%; left: 30%; width: 40%; height: 20px; }
+        #obs-down  { bottom: 5%; left: 30%; width: 40%; height: 20px; }
+        #obs-front-l { top: 30%; left: 5%; width: 15%; height: 40%; }
+        #obs-front-c { top: 25%; left: 35%; width: 30%; height: 50%; border: 2px dashed rgba(255,255,255,0.2); }
+        #obs-front-r { top: 30%; right: 5%; width: 15%; height: 40%; }
+
         .danger-active {
             background: rgba(255, 0, 68, 0.6) !important;
             border: 2px solid var(--neon-red) !important;
             box-shadow: 0 0 20px var(--neon-red);
-            animation: blink 0.5s infinite;
         }
 
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-
-        /* Status Etanchéité (HUD) */
-        #leak-overlay {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            padding: 8px 15px;
-            background: rgba(0,0,0,0.8);
-            border: 1px solid var(--neon-green);
-            color: var(--neon-green);
-            font-weight: bold;
-            border-radius: 4px;
-        }
-
-        .leak-alert {
-            border-color: var(--neon-red) !important;
-            color: var(--neon-red) !important;
-            animation: blink 0.3s infinite;
-        }
-
-        /* --- BARRE LATÉRALE --- */
+        /* --- SIDEBAR --- */
         #sidebar {
             flex: 1;
             display: flex;
             flex-direction: column;
             gap: 10px;
             min-width: 220px;
-            overflow-y: auto;
         }
 
         .stat-card {
@@ -127,10 +117,13 @@
             border: 1px solid #333;
             padding: 12px;
             border-radius: 8px;
+            border-left: 4px solid var(--neon-blue);
         }
 
+        .stat-card.warning { border-left-color: var(--neon-red); }
+
         .stat-value {
-            font-size: 1.5em;
+            font-size: 1.6em;
             color: var(--neon-green);
             font-family: monospace;
         }
@@ -139,44 +132,45 @@
             color: #888;
             font-size: 0.7em;
             text-transform: uppercase;
-            margin-bottom: 5px;
         }
 
-        .joystick-zone { position: absolute; bottom: 0; width: 50%; height: 60%; z-index: 10; }
-        #left-zone { left: 0; }
-        #right-zone { right: 0; }
+        #status-indicator { font-weight: bold; }
+        .connected { color: var(--neon-green); }
+        .disconnected { color: var(--neon-red); }
     </style>
 </head>
 <body>
 
 <div id="header">
-    ROV Cockpit v2.0 - <span id="status-indicator" class="disconnected">OFFLINE</span>
+    ROV COMMAND CENTER - ALIMENTATION FILAIRE - <span id="status-indicator" class="disconnected">OFFLINE</span>
 </div>
 
 <div id="main-container">
     <div id="video-section">
         <canvas id="video-canvas"></canvas>
         
+        <div id="leak-alert-big">⚠️ VOIE D'EAU DÉTECTÉE ⚠️</div>
+        
         <div id="obs-up" class="obstacle-zone">UP</div>
         <div id="obs-front-l" class="obstacle-zone">FRONT L</div>
         <div id="obs-front-c" class="obstacle-zone">FRONT CENTER</div>
         <div id="obs-front-r" class="obstacle-zone">FRONT R</div>
         <div id="obs-down" class="obstacle-zone">DOWN</div>
-
-        <div id="leak-overlay">ÉTANCHÉITÉ: OK</div>
-
-        <div id="left-zone" class="joystick-zone"></div>
-        <div id="right-zone" class="joystick-zone"></div>
     </div>
 
     <div id="sidebar">
         <div class="stat-card">
-            <div class="stat-label">🔋 Batterie</div>
-            <div id="bat-val" class="stat-value">--%</div>
+            <div class="stat-label">⚡ Consommation Courant</div>
+            <div id="amp-val" class="stat-value">0.00 A</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">🔌 Puissance Estimée</div>
+            <div id="watt-val" class="stat-value">0 W</div>
         </div>
         
         <div class="stat-card">
-            <div class="stat-label">🌡️ Température</div>
+            <div class="stat-label">🌡️ Température Interne</div>
             <div id="temp-val" class="stat-value">--°C</div>
         </div>
 
@@ -186,13 +180,13 @@
         </div>
 
         <div class="stat-card">
-            <div class="stat-label">📍 Position (X, Y)</div>
+            <div class="stat-label">📍 Position X, Y</div>
             <div id="pos-val" class="stat-value">0.0 , 0.0</div>
         </div>
 
-        <div class="stat-card">
-            <div class="stat-label">🛰️ Latence (Ping)</div>
-            <div id="ping-val" class="stat-value">--ms</div>
+        <div class="stat-card" id="leak-card">
+            <div class="stat-label">💧 Étanchéité</div>
+            <div id="leak-status" style="color: var(--neon-green);">SÉCURISÉ</div>
         </div>
     </div>
 </div>
@@ -206,53 +200,57 @@
     const telemetryUrl = wsProtocol + host + '/ws';
 
     const canvas = document.getElementById('video-canvas');
-    let player = new JSMpeg.Player(videoUrl, {
-        canvas: canvas,
-        autoplay: true,
-        onSourceEstablished: () => {
-            document.getElementById('status-indicator').innerText = "LIVE VIDEO";
-            document.getElementById('status-indicator').className = "connected";
-        }
-    });
+    let player = new JSMpeg.Player(videoUrl, { canvas: canvas, autoplay: true });
 
     function connectTelemetry() {
         const ws = new WebSocket(telemetryUrl);
-        let lastPing = Date.now();
 
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             
-            // Calcul du ping
-            document.getElementById('ping-val').innerText = (Date.now() - lastPing) + "ms";
-            lastPing = Date.now();
-
             if (data.telemetry) {
-                // Télémétrie classique
-                document.getElementById('bat-val').innerText = (data.telemetry.battery || "--") + "%";
+                // --- MISE À JOUR ÉLECTRIQUE ---
+                const amps = data.telemetry.amps || 0;
+                document.getElementById('amp-val').innerText = amps.toFixed(2) + " A";
+                // Calcul simple P = U * I (on suppose une alim 12V ici, change le chiffre si besoin)
+                document.getElementById('watt-val').innerText = Math.round(amps * 12) + " W";
+
+                // --- GESTION FUITE D'EAU ---
+                const leakAlert = document.getElementById('leak-alert-big');
+                const leakStatus = document.getElementById('leak-status');
+                const leakCard = document.getElementById('leak-card');
+
+                if (data.telemetry.leak) {
+                    leakAlert.style.display = "block";
+                    leakStatus.innerText = "ALERTE !";
+                    leakStatus.style.color = "var(--neon-red)";
+                    leakCard.classList.add('warning');
+                } else {
+                    leakAlert.style.display = "none";
+                    leakStatus.innerText = "SÉCURISÉ";
+                    leakStatus.style.color = "var(--neon-green)";
+                    leakCard.classList.remove('warning');
+                }
+
+                // --- AUTRES CAPTEURS ---
                 document.getElementById('temp-val').innerText = (data.telemetry.temperature || "--") + "°C";
                 document.getElementById('press-val').innerText = (data.telemetry.pressure || "--") + " hPa";
                 document.getElementById('pos-val').innerText = `${data.telemetry.posX || 0} , ${data.telemetry.posY || 0}`;
 
-                // Gestion Étanchéité
-                const leakEl = document.getElementById('leak-overlay');
-                if (data.telemetry.leak) {
-                    leakEl.innerText = "⚠️ VOIE D'EAU !";
-                    leakEl.classList.add('leak-alert');
-                } else {
-                    leakEl.innerText = "ÉTANCHÉITÉ: OK";
-                    leakEl.classList.remove('leak-alert');
-                }
-
-                // Gestion des 5 capteurs d'obstacles (booléens : true = danger)
+                // --- OBSTACLES ---
                 document.getElementById('obs-up').classList.toggle('danger-active', data.telemetry.obs_up);
                 document.getElementById('obs-down').classList.toggle('danger-active', data.telemetry.obs_down);
                 document.getElementById('obs-front-l').classList.toggle('danger-active', data.telemetry.obs_f_left);
                 document.getElementById('obs-front-c').classList.toggle('danger-active', data.telemetry.obs_f_mid);
                 document.getElementById('obs-front-r').classList.toggle('danger-active', data.telemetry.obs_f_right);
+                
+                document.getElementById('status-indicator').innerText = "LIVE";
+                document.getElementById('status-indicator').className = "connected";
             }
         };
 
         ws.onclose = () => {
+            document.getElementById('status-indicator').innerText = "OFFLINE";
             document.getElementById('status-indicator').className = "disconnected";
             setTimeout(connectTelemetry, 2000);
         };

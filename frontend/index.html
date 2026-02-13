@@ -2,12 +2,11 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ROV COMMAND CENTER - FULL ACCESS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ROV COMMAND CENTER - PRO</title>
     <style>
         :root {
             --neon-blue: #00f2ff;
-            --ps-blue: #003791;
             --neon-green: #39ff14;
             --neon-red: #ff0044;
             --bg-dark: #0a0b10;
@@ -18,65 +17,142 @@
             color: white;
             font-family: 'Segoe UI', sans-serif;
             margin: 0;
-            padding: 0;
-            overflow-y: auto; /* Permet le défilement vers le bas */
+            /* Changement ici pour autoriser le défilement vers le chat */
+            overflow-y: auto; 
+            display: flex;
+            flex-direction: column;
         }
 
         #header {
-            padding: 15px;
-            background: linear-gradient(90deg, transparent, var(--ps-blue), transparent);
+            padding: 10px;
+            background: rgba(0, 242, 255, 0.1);
             border-bottom: 1px solid var(--neon-blue);
             text-align: center;
+            letter-spacing: 2px;
+            color: var(--neon-blue);
             font-weight: bold;
+            text-transform: uppercase;
             position: sticky;
             top: 0;
             z-index: 1000;
         }
 
-        /* --- SECTION PRINCIPALE (HAUT) --- */
-        #top-section {
+        /* --- CONTAINER PRINCIPAL (HAUT) --- */
+        #main-container {
             display: flex;
-            height: calc(100vh - 60px); /* Prend toute la place restante de l'écran */
+            height: calc(100vh - 50px); /* Hauteur de l'écran moins le header */
             padding: 15px;
             gap: 15px;
             box-sizing: border-box;
         }
 
-        #video-container {
+        #video-section {
             flex: 3;
             position: relative;
             background: #000;
             border: 2px solid #333;
-            border-radius: 12px;
+            border-radius: 8px;
             overflow: hidden;
         }
 
         #video-canvas { width: 100%; height: 100%; object-fit: contain; }
+
+        #leak-alert-big {
+            display: none;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.9);
+            color: white;
+            padding: 20px 40px;
+            border: 5px solid white;
+            font-size: 2em;
+            font-weight: bold;
+            z-index: 100;
+            animation: flash-red 0.5s infinite;
+        }
+
+        @keyframes flash-red { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        .obstacle-zone {
+            position: absolute;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: bold;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }
+        #obs-up { top: 5%; left: 35%; width: 30%; height: 25px; }
+        #obs-down { bottom: 5%; left: 35%; width: 30%; height: 25px; }
+        #obs-front-l { top: 30%; left: 5%; width: 15%; height: 40%; }
+        #obs-front-c { top: 25%; left: 35%; width: 30%; height: 50%; border: 2px dashed rgba(255,255,255,0.2); }
+        #obs-front-r { top: 30%; right: 5%; width: 15%; height: 40%; }
+
+        .danger-active {
+            background: rgba(255, 0, 68, 0.7) !important;
+            border: 2px solid var(--neon-red) !important;
+            box-shadow: 0 0 15px var(--neon-red);
+        }
 
         #sidebar {
             flex: 1;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            min-width: 280px;
+            min-width: 240px;
+            overflow-y: auto;
         }
 
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #333;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid var(--neon-blue);
+        }
+
+        .stat-value { font-size: 1.4em; color: var(--neon-green); font-family: monospace; }
+        .stat-label { color: #888; font-size: 0.75em; text-transform: uppercase; margin-bottom: 5px; }
+
+        .controller-display {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .stick-container {
+            width: 50px; height: 50px;
+            border: 2px solid #444; border-radius: 50%;
+            position: relative; margin: auto;
+        }
+        .stick {
+            width: 15px; height: 15px;
+            background: var(--neon-blue); border-radius: 50%;
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .btn-grid { grid-column: span 2; display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 10px; }
+        .btn-inc { width: 25px; height: 25px; border: 1px solid #555; border-radius: 50%; font-size: 9px; display: flex; align-items: center; justify-content: center; }
+        .btn-on { background: var(--neon-green); color: black; border-color: white; }
+
         /* --- SECTION CHAT (BAS) --- */
-        #bottom-section {
+        #chat-section {
             padding: 20px;
-            background: rgba(255, 255, 255, 0.02);
+            background: rgba(0, 0, 0, 0.5);
             border-top: 2px solid #333;
         }
 
         #chat-window {
-            max-width: 1000px;
+            max-width: 800px;
             margin: 0 auto;
-            background: rgba(0, 0, 0, 0.5);
+            height: 300px;
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 12px;
             border: 1px solid #444;
             display: flex;
             flex-direction: column;
-            height: 400px;
         }
 
         #chat-messages {
@@ -85,88 +161,79 @@
             padding: 15px;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 10px;
         }
 
-        .msg { padding: 8px 12px; border-radius: 8px; background: #222; width: fit-content; }
-        .msg-me { align-self: flex-end; background: var(--ps-blue); }
+        .msg { padding: 8px 12px; border-radius: 8px; background: #222; width: fit-content; max-width: 80%; }
+        .msg-me { align-self: flex-end; background: var(--ps-blue); border-left: 3px solid var(--neon-blue); }
 
-        #chat-input-area {
-            display: flex;
-            padding: 10px;
-            border-top: 1px solid #333;
-        }
+        #chat-input-area { display: flex; padding: 10px; gap: 10px; border-top: 1px solid #333; }
+        #chat-input { flex: 1; background: #111; border: 1px solid #444; color: white; padding: 10px; border-radius: 5px; }
+        #chat-send { background: var(--neon-blue); color: black; border: none; padding: 0 20px; border-radius: 5px; font-weight: bold; cursor: pointer; }
 
-        #chat-input {
-            flex: 1;
-            background: #111;
-            border: 1px solid #444;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            outline: none;
-        }
-
-        #chat-send {
-            background: var(--neon-blue);
-            color: black;
-            border: none;
-            padding: 0 20px;
-            margin-left: 10px;
-            border-radius: 5px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        /* --- RESTE DU STYLE (HUD & STATS) --- */
-        .stat-card { background: rgba(255, 255, 255, 0.05); border-left: 4px solid var(--neon-blue); padding: 12px; border-radius: 8px; }
-        .stat-label { color: #888; font-size: 0.7em; text-transform: uppercase; }
-        .stat-value { font-size: 1.4em; color: var(--neon-green); font-family: monospace; }
-        .ps4-visual-box { position: relative; width: 220px; height: 140px; margin: 5px auto; background: url('https://raw.githubusercontent.com/Anis-V/Gamepad-API-Tester/master/img/ds4.png') no-repeat center; background-size: contain; }
-        .v-stick { position: absolute; width: 26px; height: 26px; background: radial-gradient(#444, #111); border-radius: 50%; top: 80px; }
-        #v-stick-l { left: 68px; } #v-stick-r { left: 125px; }
-        .v-btn { position: absolute; width: 16px; height: 16px; border-radius: 50%; }
-        #v-btn-0 { top: 78px; left: 163px; } /* Cross */
+        .connected { color: var(--neon-green); }
+        .disconnected { color: var(--neon-red); }
     </style>
 </head>
 <body>
 
-<div id="header">MISSION CONTROL - ROV PROJECT</div>
+<div id="header">
+    ROV COMMAND CENTER - <span id="status-indicator" class="disconnected">OFFLINE</span>
+</div>
 
-<div id="top-section">
-    <div id="video-container">
+<div id="main-container">
+    <div id="video-section">
         <canvas id="video-canvas"></canvas>
+        <div id="leak-alert-big">⚠️ VOIE D'EAU DÉTECTÉE ⚠️</div>
+        
+        <div id="obs-up" class="obstacle-zone">UP</div>
+        <div id="obs-front-l" class="obstacle-zone">L</div>
+        <div id="obs-front-c" class="obstacle-zone">CENTER</div>
+        <div id="obs-front-r" class="obstacle-zone">R</div>
+        <div id="obs-down" class="obstacle-zone">DOWN</div>
     </div>
 
     <div id="sidebar">
         <div class="stat-card">
-            <div class="stat-label">Statut Manette PS4</div>
-            <div class="ps4-visual-box">
-                <div id="v-stick-l" class="v-stick"></div>
-                <div id="v-stick-r" class="v-stick"></div>
-                <div id="v-btn-0" class="v-btn"></div>
+            <div class="stat-label">🎮 Contrôleur</div>
+            <div class="controller-display">
+                <div class="stick-container"><div id="stick-l" class="stick"></div></div>
+                <div class="stick-container"><div id="stick-r" class="stick"></div></div>
+                <div class="btn-grid">
+                    <div id="btn-0" class="btn-inc">A</div>
+                    <div id="btn-1" class="btn-inc">B</div>
+                    <div id="btn-2" class="btn-inc">X</div>
+                    <div id="btn-3" class="btn-inc">Y</div>
+                </div>
             </div>
         </div>
+
         <div class="stat-card">
-            <div class="stat-label">⚡ Courant</div>
+            <div class="stat-label">⚡ Consommation</div>
             <div id="amp-val" class="stat-value">0.00 A</div>
         </div>
+
         <div class="stat-card">
             <div class="stat-label">🌡️ Température</div>
-            <div id="temp-val" class="stat-value">-- °C</div>
+            <div id="temp-val" class="stat-value">--°C</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">⚓ Pression / Profondeur</div>
+            <div id="press-val" class="stat-value">-- hPa</div>
         </div>
     </div>
 </div>
 
-<div id="bottom-section">
-    <h3 style="text-align: center; color: var(--neon-blue);">COMMUNICATION DE MISSION</h3>
+<div id="chat-section">
+    <h3 style="text-align:center; color: var(--neon-blue); margin-top:0;">COMMUNICATION DE MISSION</h3>
     <div id="chat-window">
         <div id="chat-messages">
             <div class="msg">Système : Terminal de communication activé.</div>
         </div>
         <div id="chat-input-area">
-            <input type="text" id="chat-input" placeholder="Notez une observation ou discutez...">
-            <button id="chat-send">ENVOYER</button>
+            <input type="text" id="chat-input" placeholder="Notez une observation...">
+            <button id="chat-send">OK</button>
         </div>
     </div>
 </div>
@@ -174,68 +241,88 @@
 <script src="/frontend/jsmpeg.min.js"></script>
 <script>
     const host = window.location.host;
-    const proto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const wsProto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    let globalWS;
     
-    // 1. Vidéo
-    new JSMpeg.Player(proto + host + '/ws/video', { canvas: document.getElementById('video-canvas'), autoplay: true });
-
-    // 2. WebSocket Unique pour Télémétrie + Chat
-    const ws = new WebSocket(proto + host + '/ws');
-
-    ws.onmessage = (e) => {
-        const data = JSON.parse(e.data);
-        
-        // Gérer la télémétrie
-        if (data.telemetry) {
-            document.getElementById('amp-val').innerText = data.telemetry.amps.toFixed(2) + " A";
-            document.getElementById('temp-val').innerText = data.telemetry.temperature + " °C";
+    // Initialisation Vidéo
+    const canvas = document.getElementById('video-canvas');
+    const player = new JSMpeg.Player(wsProto + host + '/ws/video', {
+        canvas: canvas,
+        autoplay: true,
+        onSourceEstablished: () => {
+            document.getElementById('status-indicator').innerText = "LIVE";
+            document.getElementById('status-indicator').className = "connected";
         }
-        
-        // Gérer le chat (quand les autres parlent)
-        if (data.type === 'chat') {
-            addMessage(data.user + ": " + data.message, false);
-        }
-    };
+    });
 
-    // 3. Logique du Chat
+    // Gestion Télémétrie + Chat
+    function connectTelemetry() {
+        globalWS = new WebSocket(wsProto + host + '/ws');
+        
+        globalWS.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            // Partie Télémétrie
+            if (data.telemetry) {
+                document.getElementById('amp-val').innerText = (data.telemetry.amps || 0).toFixed(2) + " A";
+                document.getElementById('temp-val').innerText = (data.telemetry.temperature || "--") + "°C";
+                document.getElementById('press-val').innerText = (data.telemetry.pressure || "--") + " hPa";
+                
+                document.getElementById('leak-alert-big').style.display = data.telemetry.leak ? "block" : "none";
+                document.getElementById('obs-up').classList.toggle('danger-active', data.telemetry.obs_up);
+                document.getElementById('obs-down').classList.toggle('danger-active', data.telemetry.obs_down);
+                document.getElementById('obs-front-l').classList.toggle('danger-active', data.telemetry.obs_f_left);
+                document.getElementById('obs-front-c').classList.toggle('danger-active', data.telemetry.obs_f_mid);
+                document.getElementById('obs-front-r').classList.toggle('danger-active', data.telemetry.obs_f_right);
+            }
+
+            // Partie Chat (réception)
+            if (data.type === 'chat') {
+                addMessage(data.message, false);
+            }
+        };
+        globalWS.onclose = () => setTimeout(connectTelemetry, 2000);
+    }
+
+    // Fonctions Chat
     const chatInput = document.getElementById('chat-input');
-    const chatBox = document.getElementById('chat-messages');
+    const chatMessages = document.getElementById('chat-messages');
 
     function addMessage(text, isMe) {
         const div = document.createElement('div');
         div.className = isMe ? 'msg msg-me' : 'msg';
-        div.innerText = text;
-        chatBox.appendChild(div);
-        chatBox.scrollTop = chatBox.scrollHeight;
+        div.innerText = isMe ? "Moi : " + text : text;
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
-    document.getElementById('chat-send').onclick = () => {
-        const txt = chatInput.value;
-        if(txt) {
-            ws.send(JSON.stringify({ type: 'chat', message: txt }));
-            addMessage("Moi: " + txt, true);
+    document.getElementById('chat-send').onclick = sendChatMessage;
+    chatInput.onkeypress = (e) => { if(e.key === 'Enter') sendChatMessage(); };
+
+    function sendChatMessage() {
+        const text = chatInput.value.trim();
+        if (text && globalWS && globalWS.readyState === WebSocket.OPEN) {
+            globalWS.send(JSON.stringify({ type: 'chat', message: text }));
+            addMessage(text, true);
             chatInput.value = "";
         }
-    };
+    }
 
-    // 4. Manette PS4
+    // Gestion Manette
     function updateGamepad() {
         const gp = navigator.getGamepads()[0];
         if (gp) {
-            document.getElementById('v-stick-l').style.transform = `translate(${gp.axes[0]*10}px, ${gp.axes[1]*10}px)`;
-            document.getElementById('v-stick-r').style.transform = `translate(${gp.axes[2]*10}px, ${gp.axes[3]*10}px)`;
-            const btnCross = document.getElementById('v-btn-0');
-            if (gp.buttons[0].pressed) {
-                btnCross.style.background = "#5a78ff";
-                btnCross.style.boxShadow = "0 0 10px #5a78ff";
-            } else {
-                btnCross.style.background = "transparent";
-                btnCross.style.boxShadow = "none";
+            document.getElementById('stick-l').style.transform = `translate(calc(-50% + ${gp.axes[0]*15}px), calc(-50% + ${gp.axes[1]*15}px))`;
+            document.getElementById('stick-r').style.transform = `translate(calc(-50% + ${gp.axes[2]*15}px), calc(-50% + ${gp.axes[3]*15}px))`;
+            for (let i=0; i<4; i++) {
+                document.getElementById(`btn-${i}`).classList.toggle('btn-on', gp.buttons[i].pressed);
             }
         }
         requestAnimationFrame(updateGamepad);
     }
+
     window.addEventListener("gamepadconnected", updateGamepad);
+    connectTelemetry();
 </script>
 </body>
 </html>

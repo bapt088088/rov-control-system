@@ -7,6 +7,7 @@
     <style>
         :root {
             --neon-blue: #00f2ff;
+            --ps-blue: #003791;
             --neon-green: #39ff14;
             --neon-red: #ff0044;
             --bg-dark: #0a0b10;
@@ -17,10 +18,60 @@
             color: white;
             font-family: 'Segoe UI', sans-serif;
             margin: 0;
-            /* Changement ici pour autoriser le défilement vers le chat */
-            overflow-y: auto; 
+            overflow: hidden; /* Désactivé par défaut pour le cockpit */
             display: flex;
             flex-direction: column;
+            height: 100vh;
+        }
+
+        /* --- SYSTÈME DE MOT DE PASSE (OVERLAY) --- */
+        #auth-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-dark);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+
+        .auth-box {
+            background: rgba(0, 242, 255, 0.05);
+            padding: 40px;
+            border: 2px solid var(--neon-blue);
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 0 20px var(--neon-blue);
+        }
+
+        .auth-box input {
+            background: black;
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            padding: 15px;
+            font-size: 1.2em;
+            text-align: center;
+            margin: 20px 0;
+            border-radius: 5px;
+            outline: none;
+        }
+
+        .auth-box button {
+            background: var(--neon-blue);
+            color: black;
+            border: none;
+            padding: 10px 30px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        /* --- INTERFACE (Cachée au début) --- */
+        #ui-wrapper {
+            display: none; /* Apparaît après le MDP */
+            flex-direction: column;
+            height: 100vh;
+            overflow-y: auto;
         }
 
         #header {
@@ -32,297 +83,157 @@
             color: var(--neon-blue);
             font-weight: bold;
             text-transform: uppercase;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
         }
 
-        /* --- CONTAINER PRINCIPAL (HAUT) --- */
         #main-container {
             display: flex;
-            height: calc(100vh - 50px); /* Hauteur de l'écran moins le header */
-            padding: 15px;
-            gap: 15px;
-            box-sizing: border-box;
+            height: calc(100vh - 50px);
+            padding: 15px; gap: 15px; box-sizing: border-box;
         }
 
         #video-section {
-            flex: 3;
-            position: relative;
-            background: #000;
-            border: 2px solid #333;
-            border-radius: 8px;
-            overflow: hidden;
+            flex: 3; position: relative; background: #000;
+            border: 2px solid #333; border-radius: 8px; overflow: hidden;
         }
 
         #video-canvas { width: 100%; height: 100%; object-fit: contain; }
 
-        #leak-alert-big {
-            display: none;
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(255, 0, 0, 0.9);
-            color: white;
-            padding: 20px 40px;
-            border: 5px solid white;
-            font-size: 2em;
-            font-weight: bold;
-            z-index: 100;
-            animation: flash-red 0.5s infinite;
-        }
-
-        @keyframes flash-red { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-
         .obstacle-zone {
-            position: absolute;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 10px; font-weight: bold;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 5px;
+            position: absolute; display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: bold; background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 5px;
         }
         #obs-up { top: 5%; left: 35%; width: 30%; height: 25px; }
         #obs-down { bottom: 5%; left: 35%; width: 30%; height: 25px; }
         #obs-front-l { top: 30%; left: 5%; width: 15%; height: 40%; }
         #obs-front-c { top: 25%; left: 35%; width: 30%; height: 50%; border: 2px dashed rgba(255,255,255,0.2); }
         #obs-front-r { top: 30%; right: 5%; width: 15%; height: 40%; }
-
-        .danger-active {
-            background: rgba(255, 0, 68, 0.7) !important;
-            border: 2px solid var(--neon-red) !important;
-            box-shadow: 0 0 15px var(--neon-red);
-        }
-
-        #sidebar {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            min-width: 240px;
-            overflow-y: auto;
-        }
+        
+        .danger-active { background: rgba(255, 0, 68, 0.7) !important; border: 2px solid var(--neon-red) !important; box-shadow: 0 0 15px var(--neon-red); }
 
         .stat-card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid #333;
-            padding: 12px;
-            border-radius: 8px;
-            border-left: 4px solid var(--neon-blue);
+            background: rgba(255, 255, 255, 0.05); border: 1px solid #333;
+            padding: 12px; border-radius: 8px; border-left: 4px solid var(--neon-blue); margin-bottom: 10px;
         }
 
         .stat-value { font-size: 1.4em; color: var(--neon-green); font-family: monospace; }
-        .stat-label { color: #888; font-size: 0.75em; text-transform: uppercase; margin-bottom: 5px; }
+        .stat-label { color: #888; font-size: 0.75em; text-transform: uppercase; }
 
-        .controller-display {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            background: rgba(0,0,0,0.3);
-            padding: 10px;
-            border-radius: 8px;
-        }
-        .stick-container {
-            width: 50px; height: 50px;
-            border: 2px solid #444; border-radius: 50%;
-            position: relative; margin: auto;
-        }
-        .stick {
-            width: 15px; height: 15px;
-            background: var(--neon-blue); border-radius: 50%;
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-        }
-        .btn-grid { grid-column: span 2; display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 10px; }
-        .btn-inc { width: 25px; height: 25px; border: 1px solid #555; border-radius: 50%; font-size: 9px; display: flex; align-items: center; justify-content: center; }
-        .btn-on { background: var(--neon-green); color: black; border-color: white; }
-
-        /* --- SECTION CHAT (BAS) --- */
-        #chat-section {
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.5);
-            border-top: 2px solid #333;
-        }
-
-        #chat-window {
-            max-width: 800px;
-            margin: 0 auto;
-            height: 300px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            border: 1px solid #444;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .msg { padding: 8px 12px; border-radius: 8px; background: #222; width: fit-content; max-width: 80%; }
-        .msg-me { align-self: flex-end; background: var(--ps-blue); border-left: 3px solid var(--neon-blue); }
-
-        #chat-input-area { display: flex; padding: 10px; gap: 10px; border-top: 1px solid #333; }
-        #chat-input { flex: 1; background: #111; border: 1px solid #444; color: white; padding: 10px; border-radius: 5px; }
-        #chat-send { background: var(--neon-blue); color: black; border: none; padding: 0 20px; border-radius: 5px; font-weight: bold; cursor: pointer; }
-
-        .connected { color: var(--neon-green); }
-        .disconnected { color: var(--neon-red); }
+        /* --- CHAT --- */
+        #chat-section { padding: 20px; background: #000; border-top: 2px solid #333; }
+        #chat-window { max-width: 800px; margin: 0 auto; height: 250px; background: #111; border: 1px solid #444; display: flex; flex-direction: column; }
+        #chat-messages { flex: 1; overflow-y: auto; padding: 10px; }
+        .msg { padding: 5px 10px; border-radius: 5px; background: #222; margin-bottom: 5px; width: fit-content; }
+        .msg-me { align-self: flex-end; background: var(--ps-blue); }
+        #chat-input-area { display: flex; padding: 10px; gap: 5px; }
+        #chat-input { flex: 1; background: #000; color: white; border: 1px solid #444; padding: 8px; }
     </style>
 </head>
 <body>
 
-<div id="header">
-    ROV COMMAND CENTER - <span id="status-indicator" class="disconnected">OFFLINE</span>
+<div id="auth-overlay">
+    <div class="auth-box">
+        <h2 style="color: var(--neon-blue);">ACCÈS SÉCURISÉ</h2>
+        <p>Entrez le code de mission</p>
+        <input type="password" id="mission-code" placeholder="****">
+        <br>
+        <button onclick="checkAuth()">Connexion</button>
+        <p id="auth-error" style="color: var(--neon-red); display:none; margin-top:10px;">CODE INCORRECT</p>
+    </div>
 </div>
 
-<div id="main-container">
-    <div id="video-section">
-        <canvas id="video-canvas"></canvas>
-        <div id="leak-alert-big">⚠️ VOIE D'EAU DÉTECTÉE ⚠️</div>
-        
-        <div id="obs-up" class="obstacle-zone">UP</div>
-        <div id="obs-front-l" class="obstacle-zone">L</div>
-        <div id="obs-front-c" class="obstacle-zone">CENTER</div>
-        <div id="obs-front-r" class="obstacle-zone">R</div>
-        <div id="obs-down" class="obstacle-zone">DOWN</div>
+<div id="ui-wrapper">
+    <div id="header">
+        ROV COMMAND CENTER - <span id="status-indicator">OFFLINE</span>
     </div>
 
-    <div id="sidebar">
-        <div class="stat-card">
-            <div class="stat-label">🎮 Contrôleur</div>
-            <div class="controller-display">
-                <div class="stick-container"><div id="stick-l" class="stick"></div></div>
-                <div class="stick-container"><div id="stick-r" class="stick"></div></div>
-                <div class="btn-grid">
-                    <div id="btn-0" class="btn-inc">A</div>
-                    <div id="btn-1" class="btn-inc">B</div>
-                    <div id="btn-2" class="btn-inc">X</div>
-                    <div id="btn-3" class="btn-inc">Y</div>
-                </div>
+    <div id="main-container">
+        <div id="video-section">
+            <canvas id="video-canvas"></canvas>
+            <div id="obs-up" class="obstacle-zone">UP</div>
+            <div id="obs-front-l" class="obstacle-zone">L</div>
+            <div id="obs-front-c" class="obstacle-zone">CENTER</div>
+            <div id="obs-front-r" class="obstacle-zone">R</div>
+            <div id="obs-down" class="obstacle-zone">DOWN</div>
+        </div>
+
+        <div id="sidebar">
+            <div class="stat-card">
+                <div class="stat-label">⚡ Puissance</div>
+                <div id="amp-val" class="stat-value">0.00 A</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">🌡️ Temp</div>
+                <div id="temp-val" class="stat-value">--°C</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">⚓ Pression</div>
+                <div id="press-val" class="stat-value">-- hPa</div>
             </div>
         </div>
-
-        <div class="stat-card">
-            <div class="stat-label">⚡ Consommation</div>
-            <div id="amp-val" class="stat-value">0.00 A</div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-label">🌡️ Température</div>
-            <div id="temp-val" class="stat-value">--°C</div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-label">⚓ Pression / Profondeur</div>
-            <div id="press-val" class="stat-value">-- hPa</div>
-        </div>
     </div>
-</div>
 
-<div id="chat-section">
-    <h3 style="text-align:center; color: var(--neon-blue); margin-top:0;">COMMUNICATION DE MISSION</h3>
-    <div id="chat-window">
-        <div id="chat-messages">
-            <div class="msg">Système : Terminal de communication activé.</div>
-        </div>
-        <div id="chat-input-area">
-            <input type="text" id="chat-input" placeholder="Notez une observation...">
-            <button id="chat-send">OK</button>
+    <div id="chat-section">
+        <div id="chat-window">
+            <div id="chat-messages"></div>
+            <div id="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Message...">
+                <button id="chat-send">OK</button>
+            </div>
         </div>
     </div>
 </div>
 
 <script src="/frontend/jsmpeg.min.js"></script>
 <script>
-    const host = window.location.host;
-    const wsProto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-    let globalWS;
-    
-    // Initialisation Vidéo
-    const canvas = document.getElementById('video-canvas');
-    const player = new JSMpeg.Player(wsProto + host + '/ws/video', {
-        canvas: canvas,
-        autoplay: true,
-        onSourceEstablished: () => {
-            document.getElementById('status-indicator').innerText = "LIVE";
-            document.getElementById('status-indicator').className = "connected";
+    // --- AUTHENTIFICATION ---
+    function checkAuth() {
+        const code = document.getElementById('mission-code').value;
+        if (code === "robotAA") { // <--- MODIFIE TON CODE ICI
+            document.getElementById('auth-overlay').style.opacity = "0";
+            setTimeout(() => {
+                document.getElementById('auth-overlay').style.display = "none";
+                document.getElementById('ui-wrapper').style.display = "flex";
+                initSystem(); // Lance la connexion seulement après
+            }, 500);
+        } else {
+            document.getElementById('auth-error').style.display = "block";
         }
-    });
+    }
 
-    // Gestion Télémétrie + Chat
-    function connectTelemetry() {
-        globalWS = new WebSocket(wsProto + host + '/ws');
+    // --- SYSTÈME ROV ---
+    function initSystem() {
+        const host = window.location.host;
+        const wsProto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
         
-        globalWS.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            
-            // Partie Télémétrie
-            if (data.telemetry) {
-                document.getElementById('amp-val').innerText = (data.telemetry.amps || 0).toFixed(2) + " A";
-                document.getElementById('temp-val').innerText = (data.telemetry.temperature || "--") + "°C";
-                document.getElementById('press-val').innerText = (data.telemetry.pressure || "--") + " hPa";
-                
-                document.getElementById('leak-alert-big').style.display = data.telemetry.leak ? "block" : "none";
-                document.getElementById('obs-up').classList.toggle('danger-active', data.telemetry.obs_up);
-                document.getElementById('obs-down').classList.toggle('danger-active', data.telemetry.obs_down);
-                document.getElementById('obs-front-l').classList.toggle('danger-active', data.telemetry.obs_f_left);
-                document.getElementById('obs-front-c').classList.toggle('danger-active', data.telemetry.obs_f_mid);
-                document.getElementById('obs-front-r').classList.toggle('danger-active', data.telemetry.obs_f_right);
-            }
+        const player = new JSMpeg.Player(wsProto + host + '/ws/video', {
+            canvas: document.getElementById('video-canvas')
+        });
 
-            // Partie Chat (réception)
+        const ws = new WebSocket(wsProto + host + '/ws');
+        
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.telemetry) {
+                document.getElementById('amp-val').innerText = data.telemetry.amps + " A";
+                document.getElementById('temp-val').innerText = data.telemetry.temperature + "°C";
+                document.getElementById('press-val').innerText = data.telemetry.pressure + " hPa";
+                // Gestion obstacles...
+            }
             if (data.type === 'chat') {
-                addMessage(data.message, false);
+                const div = document.createElement('div');
+                div.className = 'msg';
+                div.innerText = data.message;
+                document.getElementById('chat-messages').appendChild(div);
             }
         };
-        globalWS.onclose = () => setTimeout(connectTelemetry, 2000);
+
+        document.getElementById('chat-send').onclick = () => {
+            const msg = document.getElementById('chat-input').value;
+            ws.send(JSON.stringify({type: 'chat', message: msg}));
+            document.getElementById('chat-input').value = "";
+        };
     }
-
-    // Fonctions Chat
-    const chatInput = document.getElementById('chat-input');
-    const chatMessages = document.getElementById('chat-messages');
-
-    function addMessage(text, isMe) {
-        const div = document.createElement('div');
-        div.className = isMe ? 'msg msg-me' : 'msg';
-        div.innerText = isMe ? "Moi : " + text : text;
-        chatMessages.appendChild(div);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    document.getElementById('chat-send').onclick = sendChatMessage;
-    chatInput.onkeypress = (e) => { if(e.key === 'Enter') sendChatMessage(); };
-
-    function sendChatMessage() {
-        const text = chatInput.value.trim();
-        if (text && globalWS && globalWS.readyState === WebSocket.OPEN) {
-            globalWS.send(JSON.stringify({ type: 'chat', message: text }));
-            addMessage(text, true);
-            chatInput.value = "";
-        }
-    }
-
-    // Gestion Manette
-    function updateGamepad() {
-        const gp = navigator.getGamepads()[0];
-        if (gp) {
-            document.getElementById('stick-l').style.transform = `translate(calc(-50% + ${gp.axes[0]*15}px), calc(-50% + ${gp.axes[1]*15}px))`;
-            document.getElementById('stick-r').style.transform = `translate(calc(-50% + ${gp.axes[2]*15}px), calc(-50% + ${gp.axes[3]*15}px))`;
-            for (let i=0; i<4; i++) {
-                document.getElementById(`btn-${i}`).classList.toggle('btn-on', gp.buttons[i].pressed);
-            }
-        }
-        requestAnimationFrame(updateGamepad);
-    }
-
-    window.addEventListener("gamepadconnected", updateGamepad);
-    connectTelemetry();
 </script>
 </body>
 </html>

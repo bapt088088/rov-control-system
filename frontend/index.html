@@ -18,7 +18,7 @@
             color: white;
             font-family: 'Segoe UI', sans-serif;
             margin: 0;
-            overflow: hidden; /* Désactivé par défaut pour le cockpit */
+            overflow: hidden; 
             display: flex;
             flex-direction: column;
             height: 100vh;
@@ -66,9 +66,22 @@
             text-transform: uppercase;
         }
 
-        /* --- INTERFACE (Cachée au début) --- */
+        /* --- ÉCRAN DE BOOT (STYLISTIQUE) --- */
+        #boot-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: black;
+            color: var(--neon-green);
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            display: none;
+            z-index: 9998;
+            overflow: hidden;
+        }
+
+        /* --- INTERFACE --- */
         #ui-wrapper {
-            display: none; /* Apparaît après le MDP */
+            display: none; 
             flex-direction: column;
             height: 100vh;
             overflow-y: auto;
@@ -142,6 +155,8 @@
     </div>
 </div>
 
+<div id="boot-screen"></div>
+
 <div id="ui-wrapper">
     <div id="header">
         CENTRE DE COMMANDE DU ROV - <span id="status-indicator">OFFLINE</span>
@@ -186,15 +201,44 @@
 
 <script src="/frontend/jsmpeg.min.js"></script>
 <script>
+    // --- SÉQUENCE DE BOOT STYLÉE ---
+    function startBootSequence() {
+        const boot = document.getElementById('boot-screen');
+        boot.style.display = 'block';
+        const lines = [
+            "> INITIALIZING SYSTEM KERNEL...",
+            "> LOADING DRIVERS: [OK]",
+            "> CONNECTING TO ROV CORE...",
+            "> ESTABLISHING ENCRYPTED LINK...",
+            "> SYNCING TELEMETRY DATA...",
+            "> AUTHENTICATION SUCCESSFUL.",
+            "> WELCOME PILOTE. SYSTEM ONLINE."
+        ];
+        
+        let i = 0;
+        const interval = setInterval(() => {
+            if (i < lines.length) {
+                boot.innerHTML += lines[i] + "<br>";
+                i++;
+            } else {
+                clearInterval(interval);
+                setTimeout(() => {
+                    boot.style.display = 'none';
+                    document.getElementById('ui-wrapper').style.display = "flex";
+                    initSystem();
+                }, 1000);
+            }
+        }, 300);
+    }
+
     // --- AUTHENTIFICATION ---
     function checkAuth() {
         const code = document.getElementById('mission-code').value;
-        if (code === "robotAA") { // <--- MODIFIE TON CODE ICI
+        if (code === "robotAA") { 
             document.getElementById('auth-overlay').style.opacity = "0";
             setTimeout(() => {
                 document.getElementById('auth-overlay').style.display = "none";
-                document.getElementById('ui-wrapper').style.display = "flex";
-                initSystem(); // Lance la connexion seulement après
+                startBootSequence(); // On lance la séquence stylée ici
             }, 500);
         } else {
             document.getElementById('auth-error').style.display = "block";
@@ -215,23 +259,26 @@
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.telemetry) {
-                document.getElementById('amp-val').innerText = data.telemetry.amps + " A";
-                document.getElementById('temp-val').innerText = data.telemetry.temperature + "°C";
-                document.getElementById('press-val').innerText = data.telemetry.pressure + " hPa";
-                // Gestion obstacles...
+                document.getElementById('amp-val').innerText = (data.telemetry.amps || 0) + " A";
+                document.getElementById('temp-val').innerText = (data.telemetry.temperature || "--") + "°C";
+                document.getElementById('press-val').innerText = (data.telemetry.pressure || "--") + " hPa";
             }
             if (data.type === 'chat') {
                 const div = document.createElement('div');
                 div.className = 'msg';
                 div.innerText = data.message;
-                document.getElementById('chat-messages').appendChild(div);
+                const container = document.getElementById('chat-messages');
+                container.appendChild(div);
+                container.scrollTop = container.scrollHeight;
             }
         };
 
         document.getElementById('chat-send').onclick = () => {
             const msg = document.getElementById('chat-input').value;
-            ws.send(JSON.stringify({type: 'chat', message: msg}));
-            document.getElementById('chat-input').value = "";
+            if(msg) {
+                ws.send(JSON.stringify({type: 'chat', message: msg}));
+                document.getElementById('chat-input').value = "";
+            }
         };
     }
 </script>

@@ -2,294 +2,184 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ROV COMMAND CENTER - PRO</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interface de Contrôle ROV</title>
+    <script src="https://jsmpeg.com/jsmpeg.min.js"></script>
     <style>
-        :root {
-            --neon-blue: #00f2ff;
-            --ps-blue: #003791;
-            --neon-green: #39ff14;
-            --neon-red: #ff0044;
-            --bg-dark: #0a0b10;
-        }
-
         body {
-            background-color: var(--bg-dark);
-            color: white;
-            font-family: 'Segoe UI', sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            overflow: hidden; 
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-
-        /* --- SYSTÈME DE MOT DE PASSE (OVERLAY) --- */
-        #auth-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--bg-dark);
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            z-index: 9999;
-            transition: opacity 0.5s ease;
-        }
-
-        .auth-box {
-            background: rgba(0, 242, 255, 0.05);
-            padding: 40px;
-            border: 2px solid var(--neon-blue);
-            border-radius: 15px;
-            text-align: center;
-            box-shadow: 0 0 20px var(--neon-blue);
-        }
-
-        .auth-box input {
-            background: black;
-            border: 1px solid var(--neon-blue);
-            color: var(--neon-blue);
-            padding: 15px;
-            font-size: 1.2em;
-            text-align: center;
-            margin: 20px 0;
-            border-radius: 5px;
-            outline: none;
-        }
-
-        .auth-box button {
-            background: var(--neon-blue);
-            color: black;
-            border: none;
-            padding: 10px 30px;
-            font-weight: bold;
-            cursor: pointer;
-            text-transform: uppercase;
-        }
-
-        /* --- ÉCRAN DE BOOT (STYLISTIQUE) --- */
-        #boot-screen {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: black;
-            color: var(--neon-green);
-            font-family: 'Courier New', monospace;
             padding: 20px;
-            display: none;
-            z-index: 9998;
-            overflow: hidden;
-        }
-
-        /* --- INTERFACE --- */
-        #ui-wrapper {
-            display: none; 
-            flex-direction: column;
-            height: 100vh;
-            overflow-y: auto;
-        }
-
-        #header {
-            padding: 10px;
-            background: rgba(0, 242, 255, 0.1);
-            border-bottom: 1px solid var(--neon-blue);
-            text-align: center;
-            letter-spacing: 2px;
-            color: var(--neon-blue);
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        #main-container {
             display: flex;
-            height: calc(100vh - 50px);
-            padding: 15px; gap: 15px; box-sizing: border-box;
+            flex-direction: column;
+            align-items: center;
         }
 
-        #video-section {
-            flex: 3; position: relative; background: #000;
-            border: 2px solid #333; border-radius: 8px; overflow: hidden;
+        h1 {
+            color: #00bcd4;
+            margin-bottom: 20px;
         }
 
-        #video-canvas { width: 100%; height: 100%; object-fit: contain; }
-
-        .obstacle-zone {
-            position: absolute; display: flex; align-items: center; justify-content: center;
-            font-size: 10px; font-weight: bold; background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 5px;
+        .dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            max-width: 1200px;
+            width: 100%;
         }
-        #obs-up { top: 5%; left: 35%; width: 30%; height: 25px; }
-        #obs-down { bottom: 5%; left: 35%; width: 30%; height: 25px; }
-        #obs-front-l { top: 30%; left: 5%; width: 15%; height: 40%; }
-        #obs-front-c { top: 25%; left: 35%; width: 30%; height: 50%; border: 2px dashed rgba(255,255,255,0.2); }
-        #obs-front-r { top: 30%; right: 5%; width: 15%; height: 40%; }
-        
-        .danger-active { background: rgba(255, 0, 68, 0.7) !important; border: 2px solid var(--neon-red) !important; box-shadow: 0 0 15px var(--neon-red); }
+
+        /* --- SECTION VIDÉO --- */
+        .video-container {
+            background-color: #1e1e1e;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            border: 2px solid #333;
+        }
+
+        canvas {
+            width: 640px;
+            height: 360px;
+            background-color: #000;
+            border-radius: 5px;
+        }
+
+        /* --- SECTION TÉLÉMÉTRIE --- */
+        .telemetry-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            border: 2px solid #333;
+        }
 
         .stat-card {
-            background: rgba(255, 255, 255, 0.05); border: 1px solid #333;
-            padding: 12px; border-radius: 8px; border-left: 4px solid var(--neon-blue); margin-bottom: 10px;
+            background-color: #2c2c2c;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 120px;
         }
 
-        .stat-value { font-size: 1.4em; color: var(--neon-green); font-family: monospace; }
-        .stat-label { color: #888; font-size: 0.75em; text-transform: uppercase; }
+        .stat-card h3 {
+            margin: 0;
+            font-size: 0.9em;
+            color: #888;
+            text-transform: uppercase;
+        }
 
-        /* --- CHAT --- */
-        #chat-section { padding: 20px; background: #000; border-top: 2px solid #333; }
-        #chat-window { max-width: 800px; margin: 0 auto; height: 250px; background: #111; border: 1px solid #444; display: flex; flex-direction: column; }
-        #chat-messages { flex: 1; overflow-y: auto; padding: 10px; }
-        .msg { padding: 5px 10px; border-radius: 5px; background: #222; margin-bottom: 5px; width: fit-content; }
-        .msg-me { align-self: flex-end; background: var(--ps-blue); }
-        #chat-input-area { display: flex; padding: 10px; gap: 5px; }
-        #chat-input { flex: 1; background: #000; color: white; border: 1px solid #444; padding: 8px; }
+        .stat-card p {
+            margin: 10px 0 0 0;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #00bcd4;
+        }
+
+        .status {
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #888;
+        }
     </style>
 </head>
 <body>
 
-<div id="auth-overlay">
-    <div class="auth-box">
-        <h2 style="color: var(--neon-blue);">ACCÈS SÉCURISÉ</h2>
-        <p>Entrez le code de mission</p>
-        <input type="password" id="mission-code" placeholder="****">
-        <br>
-        <button onclick="checkAuth()">Connexion</button>
-        <p id="auth-error" style="color: var(--neon-red); display:none; margin-top:10px;">CODE INCORRECT</p>
-    </div>
-</div>
+    <h1>Tableau de Bord ROV 🚀</h1>
 
-<div id="boot-screen"></div>
-
-<div id="ui-wrapper">
-    <div id="header">
-        CENTRE DE COMMANDE DU ROV - <span id="status-indicator">OFFLINE</span>
-    </div>
-
-    <div id="main-container">
-        <div id="video-section">
+    <div class="dashboard">
+        <div class="video-container">
             <canvas id="video-canvas"></canvas>
-            <div id="obs-up" class="obstacle-zone">HAUT</div>
-            <div id="obs-front-l" class="obstacle-zone">L</div>
-            <div id="obs-front-c" class="obstacle-zone">CENTRE</div>
-            <div id="obs-front-r" class="obstacle-zone">R</div>
-            <div id="obs-down" class="obstacle-zone">BAS</div>
+            <div style="text-align: center; margin-top: 10px; color: #aaa;">Caméra Principale (En direct)</div>
         </div>
 
-        <div id="sidebar">
+        <div class="telemetry-container">
             <div class="stat-card">
-                <div class="stat-label">⚡ Puissance</div>
-                <div id="amp-val" class="stat-value">0.00 A</div>
+                <h3>Température (DHT22)</h3>
+                <p id="temp-val">-- °C</p>
             </div>
             <div class="stat-card">
-                <div class="stat-label">🌡️ Temp</div>
-                <div id="temp-val" class="stat-value">--°C</div>
+                <h3>Humidité (DHT22)</h3>
+                <p id="hum-val">-- %</p>
             </div>
             <div class="stat-card">
-                <div class="stat-label">⚓ Pression</div>
-                <div id="press-val" class="stat-value">-- hPa</div>
+                <h3>Inclinaison X (MPU)</h3>
+                <p id="accelx-val">-- g</p>
             </div>
             <div class="stat-card">
-                <div class="stat-label">⚙️ Moteur T200</div>
-                <div id="motor-val" class="stat-value">1500 µs</div>
+                <h3>Inclinaison Y (MPU)</h3>
+                <p id="accely-val">-- g</p>
             </div>
-        </div>
-    </div>
-
-    <div id="chat-section">
-        <div id="chat-window">
-            <div id="chat-messages"></div>
-            <div id="chat-input-area">
-                <input type="text" id="chat-input" placeholder="Message...">
-                <button id="chat-send">OK</button>
+            <div class="stat-card">
+                <h3>Vitesse Moteur</h3>
+                <p id="motor-val">1500 µs</p>
+            </div>
+            <div class="stat-card">
+                <h3>Consommation (Est.)</h3>
+                <p id="amps-val">0.0 A</p>
             </div>
         </div>
     </div>
-</div>
 
-<script src="/frontend/jsmpeg.min.js"></script>
-<script>
-    // --- SÉQUENCE DE BOOT STYLÉE ---
-    function startBootSequence() {
-        const boot = document.getElementById('boot-screen');
-        boot.style.display = 'block';
-        const lines = [
-            "> INITIALIZING SYSTEM KERNEL...",
-            "> LOADING DRIVERS: [OK]",
-            "> CONNECTING TO ROV CORE...",
-            "> ESTABLISHING ENCRYPTED LINK...",
-            "> SYNCING TELEMETRY DATA...",
-            "> AUTHENTICATION SUCCESSFUL.",
-            "> WELCOME PILOTE. SYSTEM ONLINE."
-        ];
+    <div class="status" id="connection-status">Connexion en cours...</div>
+
+    <script>
+        // ==========================================
+        // 1. GESTION DU FLUX VIDÉO (JSMPEG)
+        // ==========================================
+        var canvas = document.getElementById('video-canvas');
+        var urlVideo = 'wss://rov-ptaa.onrender.com/ws/video';
         
-        let i = 0;
-        const interval = setInterval(() => {
-            if (i < lines.length) {
-                boot.innerHTML += lines[i] + "<br>";
-                i++;
-            } else {
-                clearInterval(interval);
-                setTimeout(() => {
-                    boot.style.display = 'none';
-                    document.getElementById('ui-wrapper').style.display = "flex";
-                    initSystem();
-                }, 1000);
-            }
-        }, 300);
-    }
-
-    // --- AUTHENTIFICATION ---
-    function checkAuth() {
-        const code = document.getElementById('mission-code').value;
-        if (code === "robotAA") { 
-            document.getElementById('auth-overlay').style.opacity = "0";
-            setTimeout(() => {
-                document.getElementById('auth-overlay').style.display = "none";
-                startBootSequence(); // On lance la séquence stylée ici
-            }, 500);
-        } else {
-            document.getElementById('auth-error').style.display = "block";
-        }
-    }
-
-    // --- SYSTÈME ROV ---
-    function initSystem() {
-        const host = window.location.host;
-        const wsProto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-        
-        const player = new JSMpeg.Player(wsProto + host + '/ws/video', {
-            canvas: document.getElementById('video-canvas')
+        // Initialisation du lecteur vidéo
+        var player = new JSMpeg.Player(urlVideo, {
+            canvas: canvas,
+            autoplay: true,
+            audio: false,
+            onPlay: () => console.log("Vidéo démarrée !"),
+            onStalled: () => console.log("Attente de la vidéo...")
         });
 
-        const ws = new WebSocket(wsProto + host + '/ws');
-        
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.telemetry) {
-                document.getElementById('amp-val').innerText = (data.telemetry.amps || 0) + " A";
-                document.getElementById('temp-val').innerText = (data.telemetry.temperature || "--") + "°C";
-                document.getElementById('press-val').innerText = (data.telemetry.pressure || "--") + " hPa";
-                
-                // --- MISE À JOUR DE LA VALEUR DU MOTEUR ---
-                if(document.getElementById('motor-val')) {
-                    document.getElementById('motor-val').innerText = (data.telemetry.motor || 1500) + " µs";
-                }
-            }
-            if (data.type === 'chat') {
-                const div = document.createElement('div');
-                div.className = 'msg';
-                div.innerText = data.message;
-                const container = document.getElementById('chat-messages');
-                container.appendChild(div);
-                container.scrollTop = container.scrollHeight;
-            }
+        // ==========================================
+        // 2. GESTION DE LA TÉLÉMÉTRIE ET DES CAPTEURS
+        // ==========================================
+        var urlTelemetry = 'wss://rov-ptaa.onrender.com/ws';
+        var ws = new WebSocket(urlTelemetry);
+        var statusText = document.getElementById('connection-status');
+
+        ws.onopen = function() {
+            console.log("Connecté au serveur de télémétrie");
+            statusText.innerText = "🟢 Connecté aux capteurs et à la vidéo";
+            statusText.style.color = "#4CAF50";
         };
 
-        document.getElementById('chat-send').onclick = () => {
-            const msg = document.getElementById('chat-input').value;
-            if(msg) {
-                ws.send(JSON.stringify({type: 'chat', message: msg}));
-                document.getElementById('chat-input').value = "";
+        ws.onclose = function() {
+            statusText.innerText = "🔴 Déconnecté du serveur. Reconnexion...";
+            statusText.style.color = "#F44336";
+        };
+
+        ws.onmessage = function(event) {
+            // On réceptionne le paquet JSON envoyé par le Python
+            try {
+                var data = JSON.parse(event.data);
+                
+                if (data.telemetry) {
+                    // Mise à jour de toutes les cases avec les vraies valeurs des capteurs !
+                    document.getElementById('temp-val').innerText = data.telemetry.temperature + " °C";
+                    document.getElementById('hum-val').innerText = data.telemetry.humidity + " %";
+                    document.getElementById('accelx-val').innerText = data.telemetry.accel_x + " g";
+                    document.getElementById('accely-val').innerText = data.telemetry.accel_y + " g";
+                    document.getElementById('motor-val').innerText = data.telemetry.motor + " µs";
+                    document.getElementById('amps-val').innerText = data.telemetry.amps + " A";
+                }
+            } catch (e) {
+                console.log("Erreur de lecture JSON: ", e);
             }
         };
-    }
-</script>
+    </script>
 </body>
 </html>

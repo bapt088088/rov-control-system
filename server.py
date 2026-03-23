@@ -1,5 +1,3 @@
-import json
-import asyncio
 import os
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
@@ -8,45 +6,7 @@ from typing import List
 
 app = FastAPI()
 
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: List[WebSocket] = [] # Pour le texte (chat/télémétrie)
-        self.video_connections: List[WebSocket] = []  # Pour la vidéo
-
-    # --- Gestion des connexions TEXTE ---
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-
-    # --- Gestion des connexions VIDÉO ---
-    async def connect_video(self, websocket: WebSocket):
-        await websocket.accept()
-        self.video_connections.append(websocket)
-
-    def disconnect(self, websocket: WebSocket):
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
-        if websocket in self.video_connections:
-            self.video_connections.remove(websocket)
-
-    # --- Envoi de TEXTE ---
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
-            try:
-                await connection.send_text(message)
-            except:
-                pass
-
-    # --- Envoi de VIDÉO (Bytes) ---
-    async def broadcast_video(self, data: bytes):
-        for connection in self.video_connections:
-            try:
-                await connection.send_bytes(data)
-            except:
-                pass
-
-manager = ConnectionManager()
-
+# Pour afficher ton site web
 if os.path.exists("frontend"):
     app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
 
@@ -58,48 +18,58 @@ async def get():
         return HTMLResponse(content=f.read())
 
 # ==========================================
-# 1. WEBSOCKET POUR LE CHAT ET LA TÉLÉMÉTRIE
+# RELAIS TÉLÉMÉTRIE (Capteurs + Moteur)
 # ==========================================
+telemetry_clients: List[WebSocket] = []
+
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+async def ws_telemetry(websocket: WebSocket):
+    await websocket.accept()
+    telemetry_clients.append(websocket)
     try:
         while True:
+            # Reçoit le texte (JSON) de la Raspberry Pi
             data = await websocket.receive_text()
-            message_data = json.loads(data)
-
-            if message_data.get("type") == "chat":
-                broadcast_data = {"type": "chat", "message": message_data["message"]}
-                await manager.broadcast(json.dumps(broadcast_data))
-                
+            
+            # Renvoie les données à tous les navigateurs connectés
+            for client in telemetry_clients:
+                if client != websocket: # On ne renvoie pas à la Pi elle-même
+                    try:
+                        await client.send_text(data)
+                    except:
+                        pass
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
-    except Exception as e:
-        print(f"Erreur WebSocket Texte: {e}")
-        manager.disconnect(websocket)
+        telemetry_clients.remove(websocket)
+    except Exception:
+        if websocket in telemetry_clients:
+            telemetry_clients.remove(websocket)
 
 # ==========================================
-# 2. NOUVEAU : WEBSOCKET POUR LA VIDÉO
+# RELAIS VIDÉO (Caméra)
 # ==========================================
+video_clients: List[WebSocket] = []
+
 @app.websocket("/ws/video")
-async def video_endpoint(websocket: WebSocket):
-    await manager.connect_video(websocket)
+async def ws_video(websocket: WebSocket):
+    await websocket.accept()
+    video_clients.append(websocket)
     try:
         while True:
-            # On reçoit des octets (la vidéo du Streamer.py) et non du texte !
+            # Reçoit les images (Bytes) de la Raspberry Pi
             data = await websocket.receive_bytes()
-            # On renvoie ces octets à tous ceux qui sont connectés pour regarder
-            await manager.broadcast_video(data)
             
+            # Renvoie la vidéo à tous les navigateurs connectés
+            for client in video_clients:
+                if client != websocket:
+                    try:
+                        await client.send_bytes(data)
+                    except:
+                        pass
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
-    except Exception as e:
-        print(f"Erreur WebSocket Vidéo: {e}")
-        manager.disconnect(websocket)
-
-async def send_real_telemetry(data_dict):
-    message = json.dumps({"telemetry": data_dict})
-    await manager.broadcast(message)
+        video_clients.remove(websocket)
+    except Exception:
+        if websocket in video_clients:
+            video_clients.remove(websocket)
 
 if __name__ == "__main__":
     import uvicorn

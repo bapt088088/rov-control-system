@@ -51,7 +51,11 @@ video_clients: List[WebSocket] = []
 
 @app.websocket("/ws/video")
 async def ws_video(websocket: WebSocket):
-    await websocket.accept()
+    # 🔥 LA CORRECTION EST ICI 🔥
+    # On récupère le protocole demandé par le lecteur vidéo et on l'accepte !
+    requested_protocol = websocket.headers.get("sec-websocket-protocol")
+    await websocket.accept(subprotocol=requested_protocol)
+    
     video_clients.append(websocket)
     try:
         while True:

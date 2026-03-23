@@ -3,94 +3,292 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contrôle ROV</title>
+    <title>Cockpit ROV PTAA</title>
     <script src="https://jsmpeg.com/jsmpeg.min.js"></script>
     <style>
+        :root {
+            --bg-color: #0d1117;
+            --panel-bg: #161b22;
+            --accent: #00bcd4;
+            --text-main: #c9d1d9;
+            --danger: #ff4444;
+            --success: #2ea043;
+        }
+
         body {
-            background-color: #222;
-            color: white;
-            font-family: Arial, sans-serif;
-            text-align: center;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
         }
-        /* --- CADRE VIDÉO AGRANDI --- */
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #30363d;
+            padding-bottom: 10px;
+        }
+
+        .header h1 {
+            margin: 0;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        #status-indicator {
+            padding: 5px 15px;
+            border-radius: 20px;
+            background-color: #30363d;
+            font-weight: bold;
+        }
+
+        .main-container {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+            min-height: 0; /* Important pour le scroll du chat */
+        }
+
+        /* --- SECTION VIDÉO (GAUCHE) --- */
+        .video-section {
+            flex: 3;
+            background: var(--panel-bg);
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
         .video-wrapper {
-            margin: 0 auto 20px auto;
-            border: 3px solid #555;
+            flex: 1;
             background-color: #000;
-            width: 960px; /* Taille agrandie */
-            height: 540px; /* Ratio 16:9 respecté */
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0px 0px 15px rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid #333;
         }
+
         canvas {
             width: 100%;
             height: 100%;
+            object-fit: contain;
         }
-        
-        /* --- BARRE DE TÉLÉMÉTRIE --- */
-        .telemetry-bar {
+
+        /* --- SECTION DROITE (TÉLÉMÉTRIE + CHAT) --- */
+        .sidebar {
+            flex: 1;
             display: flex;
-            justify-content: center;
-            gap: 30px;
-            background: #333;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 300px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid #30363d;
+            border-radius: 10px;
             padding: 15px;
-            border-radius: 8px;
-            width: 930px;
-            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
         }
+
+        .panel h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #8b949e;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 5px;
+        }
+
+        /* Télémétrie */
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
         .data-box {
+            background: #0d1117;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .data-label {
+            font-size: 0.75em;
+            color: #8b949e;
+            margin-bottom: 5px;
+        }
+
+        .data-value {
             font-size: 1.2em;
-        }
-        .data-box span {
             font-weight: bold;
-            color: #00ffcc;
+            color: var(--accent);
         }
-        #status {
-            margin-top: 15px;
-            font-style: italic;
-            color: #aaa;
+
+        /* Chat */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #chat-messages {
+            flex: 1;
+            background: #0d1117;
+            border-radius: 6px;
+            padding: 10px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            max-height: 250px;
+            font-size: 0.9em;
+        }
+
+        .chat-msg {
+            margin-bottom: 8px;
+            word-wrap: break-word;
+        }
+
+        .chat-msg .user {
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .chat-input-area {
+            display: flex;
+            gap: 10px;
+        }
+
+        #chat-input {
+            flex: 1;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #30363d;
+            background: #0d1117;
+            color: white;
+        }
+
+        #chat-send {
+            padding: 8px 15px;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #chat-send:hover {
+            background: #008ba3;
         }
     </style>
 </head>
 <body>
 
-    <h2>Caméra ROV Principale</h2>
-
-    <div class="video-wrapper">
-        <canvas id="video-canvas"></canvas>
+    <div class="header">
+        <h1>Cockpit ROV PTAA</h1>
+        <div id="status-indicator" style="color: #8b949e;">🟡 Connexion en cours...</div>
     </div>
 
-    <div class="telemetry-bar">
-        <div class="data-box">Temp: <span id="temp-val">--</span></div>
-        <div class="data-box">Hum: <span id="hum-val">--</span></div>
-        <div class="data-box">Accel X: <span id="accelx-val">--</span></div>
-        <div class="data-box">Accel Y: <span id="accely-val">--</span></div>
-        <div class="data-box">Moteur: <span id="motor-val">--</span></div>
-        <div class="data-box">Conso: <span id="amps-val">--</span></div>
-    </div>
+    <div class="main-container">
+        <div class="video-section">
+            <div class="video-wrapper">
+                <canvas id="video-canvas"></canvas>
+            </div>
+            <div style="text-align: center; margin-top: 10px; color: #8b949e; font-size: 0.8em;">Flux Vidéo MPEG1 Direct</div>
+        </div>
 
-    <div id="status">Attente de connexion...</div>
+        <div class="sidebar">
+            <div class="panel">
+                <h3>Capteurs & Moteur</h3>
+                <div class="telemetry-grid">
+                    <div class="data-box">
+                        <div class="data-label">TEMPÉRATURE</div>
+                        <div class="data-value" id="temp-val">-- °C</div>
+                    </div>
+                    <div class="data-box">
+                        <div class="data-label">HUMIDITÉ</div>
+                        <div class="data-value" id="hum-val">-- %</div>
+                    </div>
+                    <div class="data-box">
+                        <div class="data-label">INCLINAISON X</div>
+                        <div class="data-value" id="accelx-val">-- g</div>
+                    </div>
+                    <div class="data-box">
+                        <div class="data-label">INCLINAISON Y</div>
+                        <div class="data-value" id="accely-val">-- g</div>
+                    </div>
+                    <div class="data-box">
+                        <div class="data-label">SIGNAL MOTEUR</div>
+                        <div class="data-value" id="motor-val">-- µs</div>
+                    </div>
+                    <div class="data-box">
+                        <div class="data-label">COURANT EST.</div>
+                        <div class="data-value" id="amps-val">-- A</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel chat-container">
+                <h3>Communications</h3>
+                <div id="chat-messages">
+                    <div class="chat-msg" style="color: #8b949e; font-style: italic;">Système : Canal de communication ouvert.</div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="Saisir un message..." autocomplete="off">
+                    <button id="chat-send">Envoyer</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
-        // 1. Lancement de la Vidéo
+        // --- 1. GESTION DE LA VIDÉO ---
         var canvas = document.getElementById('video-canvas');
         var urlVideo = 'wss://rov-ptaa.onrender.com/ws/video';
-        var player = new JSMpeg.Player(urlVideo, { canvas: canvas, autoplay: true, audio: false });
+        var player = new JSMpeg.Player(urlVideo, { 
+            canvas: canvas, 
+            autoplay: true, 
+            audio: false 
+        });
 
-        // 2. Lancement des Données
-        var urlTelemetry = 'wss://rov-ptaa.onrender.com/ws';
-        var ws = new WebSocket(urlTelemetry);
-        var statusDiv = document.getElementById('status');
+        // --- 2. GESTION TÉLÉMÉTRIE & CHAT ---
+        var urlData = 'wss://rov-ptaa.onrender.com/ws';
+        var ws = new WebSocket(urlData);
+        var statusIndicator = document.getElementById('status-indicator');
+        var chatMessages = document.getElementById('chat-messages');
 
-        ws.onopen = function() { statusDiv.innerText = "Connecté au serveur Render ! En attente de la Raspberry..."; };
-        ws.onclose = function() { statusDiv.innerText = "Déconnecté. Reconnexion..."; };
+        // Pseudonyme aléatoire pour le chat (Pilote_123)
+        var myUsername = "Pilote_" + Math.floor(Math.random() * 1000);
+
+        ws.onopen = function() { 
+            statusIndicator.innerText = "🟢 SYSTÈME EN LIGNE"; 
+            statusIndicator.style.color = "var(--success)";
+        };
+        
+        ws.onclose = function() { 
+            statusIndicator.innerText = "🔴 DÉCONNECTÉ"; 
+            statusIndicator.style.color = "var(--danger)";
+        };
 
         ws.onmessage = function(event) {
             try {
                 var data = JSON.parse(event.data);
+                
+                // Si le message contient des données de télémétrie
                 if (data.telemetry) {
                     document.getElementById('temp-val').innerText = data.telemetry.temperature + " °C";
                     document.getElementById('hum-val').innerText = data.telemetry.humidity + " %";
@@ -98,12 +296,38 @@
                     document.getElementById('accely-val').innerText = data.telemetry.accel_y + " g";
                     document.getElementById('motor-val').innerText = data.telemetry.motor + " µs";
                     document.getElementById('amps-val').innerText = data.telemetry.amps + " A";
-                    statusDiv.innerText = "Données reçues en direct !";
+                }
+                
+                // Si le message contient un message de chat
+                if (data.chat) {
+                    var msgDiv = document.createElement('div');
+                    msgDiv.className = 'chat-msg';
+                    msgDiv.innerHTML = '<span class="user">' + data.user + ' : </span>' + data.chat;
+                    chatMessages.appendChild(msgDiv);
+                    // Auto-scroll vers le bas
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
                 }
             } catch (e) {
-                console.log("Erreur JSON:", e);
+                console.log("Erreur de parsing:", e);
             }
         };
+
+        // Envoi de message dans le chat
+        function sendMessage() {
+            var input = document.getElementById('chat-input');
+            var text = input.value.trim();
+            if (text !== "" && ws.readyState === WebSocket.OPEN) {
+                // On envoie un objet JSON formaté pour le chat
+                var payload = { chat: text, user: myUsername };
+                ws.send(JSON.stringify(payload));
+                input.value = "";
+            }
+        }
+
+        document.getElementById('chat-send').addEventListener('click', sendMessage);
+        document.getElementById('chat-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
     </script>
 </body>
 </html>

@@ -54,7 +54,7 @@
             display: flex;
             gap: 20px;
             flex: 1;
-            min-height: 0; /* Important pour le scroll du chat */
+            min-height: 0;
         }
 
         /* --- SECTION VIDÉO (GAUCHE) --- */
@@ -261,7 +261,7 @@
         // ==========================================
         var motDePasse = prompt("🔒 Accès sécurisé : Veuillez entrer le mot de passe du ROV");
         
-        // Remplace "ptaa2026" par le mot de passe que tu souhaites !
+        // Le mot de passe est désormais "robotAA"
         if (motDePasse !== "robotAA") {
             document.body.innerHTML = "<h1 style='color: var(--danger); text-align: center; margin-top: 20%; font-size: 3em;'>⛔ ACCÈS REFUSÉ</h1>";
             throw new Error("Accès bloqué : Mauvais mot de passe.");
@@ -282,6 +282,7 @@
         var statusIndicator = document.getElementById('status-indicator');
         var chatMessages = document.getElementById('chat-messages');
 
+        // Pseudonyme aléatoire pour le chat (Pilote_123)
         var myUsername = "Pilote_" + Math.floor(Math.random() * 1000);
 
         ws.onopen = function() { 
@@ -298,6 +299,7 @@
             try {
                 var data = JSON.parse(event.data);
                 
+                // Si le message contient des données de télémétrie
                 if (data.telemetry) {
                     document.getElementById('temp-val').innerText = data.telemetry.temperature + " °C";
                     document.getElementById('hum-val').innerText = data.telemetry.humidity + " %";
@@ -307,11 +309,13 @@
                     document.getElementById('amps-val').innerText = data.telemetry.amps + " A";
                 }
                 
+                // Si le message contient un message de chat
                 if (data.chat) {
                     var msgDiv = document.createElement('div');
                     msgDiv.className = 'chat-msg';
                     msgDiv.innerHTML = '<span class="user">' + data.user + ' : </span>' + data.chat;
                     chatMessages.appendChild(msgDiv);
+                    // Auto-scroll vers le bas
                     chatMessages.scrollTop = chatMessages.scrollHeight;
                 }
             } catch (e) {
@@ -319,10 +323,12 @@
             }
         };
 
+        // Envoi de message dans le chat
         function sendMessage() {
             var input = document.getElementById('chat-input');
             var text = input.value.trim();
             if (text !== "" && ws.readyState === WebSocket.OPEN) {
+                // On envoie un objet JSON formaté pour le chat
                 var payload = { chat: text, user: myUsername };
                 ws.send(JSON.stringify(payload));
                 input.value = "";

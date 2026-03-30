@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cockpit ROV PTAA</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="https://jsmpeg.com/jsmpeg.min.js"></script>
     <style>
         :root {
@@ -208,7 +209,7 @@
             <div class="video-wrapper">
                 <canvas id="video-canvas"></canvas>
             </div>
-            <div style="text-align: center; margin-top: 10px; color: #8b949e; font-size: 0.8em;">Flux Vidéo MPEG1 Direct</div>
+            <div style="text-align: center; margin-top: 10px; color: #8b949e; font-size: 0.8em;">Flux Vidéo UDP Local</div>
         </div>
 
         <div class="sidebar">
@@ -233,7 +234,7 @@
                     </div>
                     <div class="data-box">
                         <div class="data-label">SIGNAL MOTEUR</div>
-                        <div class="data-value" id="motor-val">-- µs</div>
+                        <div class="data-value" id="motor-val">1500 µs</div>
                     </div>
                     <div class="data-box">
                         <div class="data-label">COURANT EST.</div>
@@ -261,76 +262,73 @@
         // ==========================================
         var motDePasse = prompt("🔒 Accès sécurisé : Veuillez entrer le mot de passe du ROV");
         
-        // Le mot de passe est désormais "robotAA"
         if (motDePasse !== "robotAA") {
             document.body.innerHTML = "<h1 style='color: var(--danger); text-align: center; margin-top: 20%; font-size: 3em;'>⛔ ACCÈS REFUSÉ</h1>";
             throw new Error("Accès bloqué : Mauvais mot de passe.");
         }
 
         // --- 1. GESTION DE LA VIDÉO ---
+        // ATTENTION : Actuellement, le Python envoie la vidéo directement au PC (172.20.10.8) via UDP.
+        // Ce bout de code attend un flux WebSocket depuis Render.com. 
         var canvas = document.getElementById('video-canvas');
         var urlVideo = 'wss://rov-ptaa.onrender.com/ws/video';
-        var player = new JSMpeg.Player(urlVideo, { 
-            canvas: canvas, 
-            autoplay: true, 
-            audio: false 
-        });
+        try {
+            var player = new JSMpeg.Player(urlVideo, { 
+                canvas: canvas, 
+                autoplay: true, 
+                audio: false 
+            });
+        } catch(e) { console.log("JSMpeg en attente de flux...") }
 
-        // --- 2. GESTION TÉLÉMÉTRIE & CHAT ---
-        var urlData = 'wss://rov-ptaa.onrender.com/ws';
-        var ws = new WebSocket(urlData);
+        // --- 2. GESTION TÉLÉMÉTRIE & CHAT (Mise à jour pour Socket.IO) ---
+        var socket = io(); // Se connecte automatiquement au Raspberry Pi !
         var statusIndicator = document.getElementById('status-indicator');
         var chatMessages = document.getElementById('chat-messages');
 
-        // Pseudonyme aléatoire pour le chat (Pilote_123)
+        // Pseudonyme aléatoire
         var myUsername = "Pilote_" + Math.floor(Math.random() * 1000);
 
-        ws.onopen = function() { 
+        // Connexion
+        socket.on('connect', function() { 
             statusIndicator.innerText = "🟢 SYSTÈME EN LIGNE"; 
             statusIndicator.style.color = "var(--success)";
-        };
+        });
         
-        ws.onclose = function() { 
+        // Déconnexion
+        socket.on('disconnect', function() { 
             statusIndicator.innerText = "🔴 DÉCONNECTÉ"; 
             statusIndicator.style.color = "var(--danger)";
-        };
+        });
 
-        ws.onmessage = function(event) {
-            try {
-                var data = JSON.parse(event.data);
-                
-                // Si le message contient des données de télémétrie
-                if (data.telemetry) {
-                    document.getElementById('temp-val').innerText = data.telemetry.temperature + " °C";
-                    document.getElementById('hum-val').innerText = data.telemetry.humidity + " %";
-                    document.getElementById('accelx-val').innerText = data.telemetry.accel_x + " g";
-                    document.getElementById('accely-val').innerText = data.telemetry.accel_y + " g";
-                    document.getElementById('motor-val').innerText = data.telemetry.motor + " µs";
-                    document.getElementById('amps-val').innerText = data.telemetry.amps + " A";
-                }
-                
-                // Si le message contient un message de chat
-                if (data.chat) {
-                    var msgDiv = document.createElement('div');
-                    msgDiv.className = 'chat-msg';
-                    msgDiv.innerHTML = '<span class="user">' + data.user + ' : </span>' + data.chat;
-                    chatMessages.appendChild(msgDiv);
-                    // Auto-scroll vers le bas
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                }
-            } catch (e) {
-                console.log("Erreur de parsing:", e);
-            }
-        };
+        // --- RECEPTION DES DONNEES CAPTEURS ---
+        
+        // Température & Humidité
+        socket.on('dht_data', function(data) {
+            document.getElementById('temp-val').innerText = data.temp + " °C";
+            document.getElementById('hum-val').innerText = data.hum + " %";
+        });
 
-        // Envoi de message dans le chat
+        // Inclinaison
+        socket.on('mpu_data', function(data) {
+            document.getElementById('accelx-val').innerText = data.ax + " g";
+            document.getElementById('accely-val').innerText = data.ay + " g";
+        });
+
+        // --- GESTION DU CHAT LOCAL ---
+        function addChatMessage(user, text) {
+            var msgDiv = document.createElement('div');
+            msgDiv.className = 'chat-msg';
+            msgDiv.innerHTML = '<span class="user">' + user + ' : </span>' + text;
+            chatMessages.appendChild(msgDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll
+        }
+
         function sendMessage() {
             var input = document.getElementById('chat-input');
             var text = input.value.trim();
-            if (text !== "" && ws.readyState === WebSocket.OPEN) {
-                // On envoie un objet JSON formaté pour le chat
-                var payload = { chat: text, user: myUsername };
-                ws.send(JSON.stringify(payload));
+            if (text !== "") {
+                // On affiche le message localement pour l'instant
+                addChatMessage(myUsername, text);
                 input.value = "";
             }
         }

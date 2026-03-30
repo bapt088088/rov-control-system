@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cockpit ROV PTAA</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <script src="https://jsmpeg.com/jsmpeg.min.js"></script>
     <style>
         :root {
             --bg-color: #0d1117;
@@ -80,7 +79,8 @@
             border: 2px solid #333;
         }
 
-        canvas {
+        /* La nouvelle balise image pour la vidéo ! */
+        #video-canvas {
             width: 100%;
             height: 100%;
             object-fit: contain;
@@ -207,9 +207,9 @@
     <div class="main-container">
         <div class="video-section">
             <div class="video-wrapper">
-                <canvas id="video-canvas"></canvas>
+                <img id="video-canvas" src="/video_feed" alt="Caméra déconnectée">
             </div>
-            <div style="text-align: center; margin-top: 10px; color: #8b949e; font-size: 0.8em;">Flux Vidéo UDP Local</div>
+            <div style="text-align: center; margin-top: 10px; color: #8b949e; font-size: 0.8em;">Flux Vidéo MJPEG Direct</div>
         </div>
 
         <div class="sidebar">
@@ -267,25 +267,10 @@
             throw new Error("Accès bloqué : Mauvais mot de passe.");
         }
 
-        // --- 1. GESTION DE LA VIDÉO ---
-        // ATTENTION : Actuellement, le Python envoie la vidéo directement au PC (172.20.10.8) via UDP.
-        // Ce bout de code attend un flux WebSocket depuis Render.com. 
-        var canvas = document.getElementById('video-canvas');
-        var urlVideo = 'wss://rov-ptaa.onrender.com/ws/video';
-        try {
-            var player = new JSMpeg.Player(urlVideo, { 
-                canvas: canvas, 
-                autoplay: true, 
-                audio: false 
-            });
-        } catch(e) { console.log("JSMpeg en attente de flux...") }
-
-        // --- 2. GESTION TÉLÉMÉTRIE & CHAT (Mise à jour pour Socket.IO) ---
-        var socket = io(); // Se connecte automatiquement au Raspberry Pi !
+        // --- GESTION TÉLÉMÉTRIE & CHAT ---
+        var socket = io(); 
         var statusIndicator = document.getElementById('status-indicator');
         var chatMessages = document.getElementById('chat-messages');
-
-        // Pseudonyme aléatoire
         var myUsername = "Pilote_" + Math.floor(Math.random() * 1000);
 
         // Connexion
@@ -300,8 +285,6 @@
             statusIndicator.style.color = "var(--danger)";
         });
 
-        // --- RECEPTION DES DONNEES CAPTEURS ---
-        
         // Température & Humidité
         socket.on('dht_data', function(data) {
             document.getElementById('temp-val').innerText = data.temp + " °C";
@@ -314,20 +297,19 @@
             document.getElementById('accely-val').innerText = data.ay + " g";
         });
 
-        // --- GESTION DU CHAT LOCAL ---
+        // Chat
         function addChatMessage(user, text) {
             var msgDiv = document.createElement('div');
             msgDiv.className = 'chat-msg';
             msgDiv.innerHTML = '<span class="user">' + user + ' : </span>' + text;
             chatMessages.appendChild(msgDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll
+            chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
         function sendMessage() {
             var input = document.getElementById('chat-input');
             var text = input.value.trim();
             if (text !== "") {
-                // On affiche le message localement pour l'instant
                 addChatMessage(myUsername, text);
                 input.value = "";
             }

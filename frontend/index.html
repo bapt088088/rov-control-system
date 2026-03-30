@@ -293,8 +293,8 @@
 
         // Inclinaison
         socket.on('mpu_data', function(data) {
-            document.getElementById('accelx-val').innerText = data.ax + " g";
-            document.getElementById('accely-val').innerText = data.ay + " g";
+            document.getElementById('accelx-val').innerText = data.ax + " °";
+            document.getElementById('accely-val').innerText = data.ay + " °";
         });
 
         // Chat

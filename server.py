@@ -1,6 +1,3 @@
-import eventlet
-eventlet.monkey_patch()
-
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 import subprocess
@@ -13,7 +10,8 @@ import mpu6050
 import os
 
 app = Flask(__name__, template_folder='.')
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+# On enlève eventlet et on utilise threading par défaut
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 PC_IP = "172.20.10.8"
 ARDUINO_PORT = '/dev/ttyACM0'
@@ -58,7 +56,7 @@ def boucle_dht22():
                 if hum is not None and temp is not None:
                     socketio.emit('dht_data', {'temp': round(temp, 1), 'hum': round(hum, 1)})
             except Exception as e:
-                print(f"[ERREUR DHT22] {e}") # On affiche enfin la vraie erreur !
+                print(f"[ERREUR DHT22] {e}") 
         socketio.sleep(2.0)
 
 def boucle_mpu6050():
@@ -74,8 +72,7 @@ def boucle_mpu6050():
                 }
                 socketio.emit('mpu_data', data)
             except Exception as e:
-                print(f"[ERREUR MPU6050] {e}") # On affiche la vraie erreur !
-                # Si erreur, on envoie des fausses données pour tester le site
+                print(f"[ERREUR MPU6050] {e}") 
                 compteur_test += 1
                 socketio.emit('mpu_data', {'ax': compteur_test, 'ay': 9.9, 'az': 9.9})
         socketio.sleep(0.1)

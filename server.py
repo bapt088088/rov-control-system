@@ -1,5 +1,5 @@
 import eventlet
-eventlet.monkey_patch() # Indispensable pour que le web et le robot tournent en même temps
+eventlet.monkey_patch()
 
 from flask import Flask, render_template
 from flask_socketio import SocketIO
@@ -12,16 +12,13 @@ import adafruit_dht
 import mpu6050
 import os
 
-# --- INITIALISATION DU SERVEUR WEB ---
-app = Flask(__name__, template_folder='.') # Cherche index.html dans le même dossier
+app = Flask(__name__, template_folder='.')
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
-# --- CONFIGURATIONS ---
 PC_IP = "172.20.10.8"
 ARDUINO_PORT = '/dev/ttyACM0'
 GAUSS_GRAVITY = 9.80665
 
-# --- INITIALISATION MATERIELLE (Tolérance aux pannes) ---
 print("--- INITIALISATION DES COMPOSANTS ---")
 
 try:
@@ -40,18 +37,11 @@ except Exception as e:
 
 try:
     arduino = serial.Serial(ARDUINO_PORT, 9600)
-    time.sleep(2)
     print("[OK] Arduino (Moteurs)")
 except Exception as e:
-    print(f"[ERREUR] Arduino: {e}")
     arduino = None
 
-
-# --- LES SOUS-PROGRAMMES (Tâches de fond) ---
-
 def start_camera():
-    """Lance la vidéo vers le PC sans enregistrer, et cache les logs inutiles"""
-    print(f"[INFO] Démarrage vidéo vers {PC_IP}...")
     command = (
         f"rpicam-vid -t 0 --width 754 --height 480 --framerate 30 --bitrate 2000000 "
         f"--inline --intra 1 --flush --codec libav --libav-format mpegts "
@@ -60,7 +50,6 @@ def start_camera():
     subprocess.Popen(command + " 2>/dev/null", shell=True)
 
 def boucle_dht22():
-    """Lit la température/humidité toutes les 2s"""
     while True:
         if dht_device:
             try:
@@ -68,12 +57,12 @@ def boucle_dht22():
                 hum = dht_device.humidity
                 if hum is not None and temp is not None:
                     socketio.emit('dht_data', {'temp': round(temp, 1), 'hum': round(hum, 1)})
-            except:
-                pass # Ignore les petites erreurs normales du capteur
+            except Exception as e:
+                print(f"[ERREUR DHT22] {e}") # On affiche enfin la vraie erreur !
         socketio.sleep(2.0)
 
 def boucle_mpu6050():
-    """Lit la position en continu"""
+    compteur_test = 0
     while True:
         if sensor_mpu:
             try:
@@ -84,64 +73,45 @@ def boucle_mpu6050():
                     'gx': round(g['x'], 2), 'gy': round(g['y'], 2), 'gz': round(g['z'], 2)
                 }
                 socketio.emit('mpu_data', data)
-            except:
-                pass
+            except Exception as e:
+                print(f"[ERREUR MPU6050] {e}") # On affiche la vraie erreur !
+                # Si erreur, on envoie des fausses données pour tester le site
+                compteur_test += 1
+                socketio.emit('mpu_data', {'ax': compteur_test, 'ay': 9.9, 'az': 9.9})
         socketio.sleep(0.1)
 
 def boucle_manette():
-    """Gère la manette et le pilotage des moteurs via l'Arduino"""
-    os.environ["SDL_VIDEODRIVER"] = "dummy" # Requis sur Pi
-    pygame.init()
-    pygame.joystick.init()
-    
-    if pygame.joystick.get_count() == 0:
-        print("[AVERTISSEMENT] Aucune manette détectée.")
-        return
-
-    js = pygame.joystick.Joystick(0)
-    js.init()
-    print("[OK] Manette prête.")
-
-    vitesse_actuelle = 1500
-    PAS_ACCELERATION = 10
-
-    while True:
-        pygame.event.pump()
-        y = -js.get_axis(1)
-        if abs(y) < 0.1: y = 0
-
-        vitesse_cible = int(1500 + y * 400)
-
-        if vitesse_actuelle < vitesse_cible:
-            vitesse_actuelle = min(vitesse_actuelle + PAS_ACCELERATION, vitesse_cible)
-        elif vitesse_actuelle > vitesse_cible:
-            vitesse_actuelle = max(vitesse_actuelle - PAS_ACCELERATION, vitesse_cible)
-
-        if arduino:
-            try:
-                arduino.write((str(vitesse_actuelle) + "\n").encode())
-            except:
-                pass
-        
-        socketio.sleep(0.02)
-
-# --- ROUTE DU SITE WEB ---
+    os.environ["SDL_VIDEODRIVER"] = "dummy"
+    try:
+        pygame.init()
+        pygame.joystick.init()
+        if pygame.joystick.get_count() > 0:
+            js = pygame.joystick.Joystick(0)
+            js.init()
+            vitesse_actuelle = 1500
+            while True:
+                pygame.event.pump()
+                y = -js.get_axis(1)
+                if abs(y) < 0.1: y = 0
+                vitesse_cible = int(1500 + y * 400)
+                
+                if vitesse_actuelle < vitesse_cible: vitesse_actuelle = min(vitesse_actuelle + 10, vitesse_cible)
+                elif vitesse_actuelle > vitesse_cible: vitesse_actuelle = max(vitesse_actuelle - 10, vitesse_cible)
+                
+                if arduino: arduino.write((str(vitesse_actuelle) + "\n").encode())
+                socketio.sleep(0.02)
+        else:
+            return
+    except:
+        pass
 
 @app.route('/')
 def index():
-    # Assure-toi que ton frontend s'appelle bien index.html
-    return render_template('index.html') 
-
-# --- LANCEMENT GLOBAL ---
+    return render_template('index.html')
 
 if __name__ == '__main__':
-    print("\n=== DEMARRAGE DU SYSTEME ROV ===")
     start_camera()
-    
-    # Lancement des threads
     socketio.start_background_task(target=boucle_dht22)
     socketio.start_background_task(target=boucle_mpu6050)
     socketio.start_background_task(target=boucle_manette)
-    
-    print(f"[INFO] Serveur Web prêt sur le port 8080.")
     socketio.run(app, host='0.0.0.0', port=8080, debug=False)
